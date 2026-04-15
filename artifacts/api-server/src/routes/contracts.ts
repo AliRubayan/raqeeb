@@ -10,6 +10,7 @@ import {
   findContractById,
   getContractsByUser,
   updateContractStatus,
+  deleteContract,
 } from "../repositories/contracts";
 import { getAuditResultByContract } from "../repositories/audit-results";
 import { logger } from "../lib/logger";
@@ -204,6 +205,26 @@ router.get("/:contractId", requireAuth, async (req, res) => {
         }
       : null,
   });
+});
+
+router.delete("/:id", requireAuth, async (req, res) => {
+  const contractId = req.params.id as string;
+
+  const contract = await findContractById(contractId);
+  if (!contract) {
+    res.status(404).json({ error: "Contract not found" });
+    return;
+  }
+
+  if (contract.userId !== req.session.userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  await deleteContract(contractId);
+
+  logger.info({ contractId, userId: req.session.userId }, "Contract deleted");
+  res.json({ message: "Contract deleted successfully" });
 });
 
 export default router;

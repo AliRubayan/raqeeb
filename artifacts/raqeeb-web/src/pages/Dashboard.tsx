@@ -1,14 +1,58 @@
+import { useState } from "react";
 import { useGetContractHistory, getGetContractHistoryQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, FileText, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, FileText, AlertTriangle, CheckCircle, Clock, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { arSA } from "date-fns/locale";
 
 export function Dashboard() {
   const { data, isLoading } = useGetContractHistory();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  const handleDelete = async (contractId: string) => {
+    setDeletingId(contractId);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "فشل حذف العقد");
+      }
+
+      await queryClient.invalidateQueries({ queryKey: getGetContractHistoryQueryKey() });
+      toast({ title: "تم حذف العقد بنجاح" });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "فشل الحذف",
+        description: error.message,
+      });
+    } finally {
+      setDeletingId(null);
+      setConfirmId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -57,6 +101,8 @@ export function Dashboard() {
     }
   };
 
+  const confirmContract = contracts.find((c) => c.id === confirmId);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -87,42 +133,84 @@ export function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {contracts.map((contract) => (
-            <Link key={contract.id} href={`/contracts/${contract.id}`}>
-              <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-border/60 hover:border-primary/30">
-                <CardHeader className="pb-3">
-                  <div className="flex justify-between items-start mb-2">
-                    {getStatusBadge(contract.status)}
-                    <span className="text-xs text-muted-foreground" dir="ltr">
-                      {format(new Date(contract.createdAt), "dd MMM yyyy", { locale: arSA })}
-                    </span>
-                  </div>
-                  <CardTitle className="text-xl line-clamp-1">{contract.contractName}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {contract.auditResult ? (
-                    <div className="bg-muted/30 rounded-lg p-4 mt-2">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium">مؤشر المخاطر</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold">{contract.auditResult.riskScore}/10</span>
+            <div key={contract.id} className="relative group">
+              <Link href={`/contracts/${contract.id}`}>
+                <Card className="hover:shadow-md transition-shadow cursor-pointer h-full border-border/60 hover:border-primary/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-start mb-2">
+                      {getStatusBadge(contract.status)}
+                      <span className="text-xs text-muted-foreground" dir="ltr">
+                        {format(new Date(contract.createdAt), "dd MMM yyyy", { locale: arSA })}
+                      </span>
+                    </div>
+                    <CardTitle className="text-xl line-clamp-1 pl-8">{contract.contractName}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {contract.auditResult ? (
+                      <div className="bg-muted/30 rounded-lg p-4 mt-2">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium">مؤشر المخاطر</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold">{contract.auditResult.riskScore}/10</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getSeverityIcon(contract.auditResult.severity)}
+                          <span className="text-sm font-medium">{getSeverityLabel(contract.auditResult.severity)}</span>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {getSeverityIcon(contract.auditResult.severity)}
-                        <span className="text-sm font-medium">{getSeverityLabel(contract.auditResult.severity)}</span>
+                    ) : (
+                      <div className="bg-muted/30 rounded-lg p-4 mt-2 h-[88px] flex items-center justify-center text-muted-foreground text-sm">
+                        {contract.status === "Analyzing" ? "جاري التحليل..." : "لا توجد نتائج بعد"}
                       </div>
-                    </div>
-                  ) : (
-                    <div className="bg-muted/30 rounded-lg p-4 mt-2 h-[88px] flex items-center justify-center text-muted-foreground text-sm">
-                      {contract.status === "Analyzing" ? "جاري التحليل..." : "لا توجد نتائج بعد"}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-3 left-3 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10 z-10"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setConfirmId(contract.id);
+                }}
+                disabled={deletingId === contract.id}
+              >
+                {deletingId === contract.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!confirmId} onOpenChange={(open) => !open && setConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>حذف العقد</AlertDialogTitle>
+            <AlertDialogDescription>
+              هل أنت متأكد من حذف عقد «{confirmContract?.contractName}»؟
+              <br />
+              لا يمكن التراجع عن هذا الإجراء وستُحذف جميع نتائج التحليل المرتبطة به.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row-reverse gap-2">
+            <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => confirmId && handleDelete(confirmId)}
+            >
+              حذف العقد
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
