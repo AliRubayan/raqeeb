@@ -76,9 +76,17 @@ router.post("/", requireAuth, async (req, res) => {
       (isValid(data["text"]) ? data["text"] : null) ??
       (isValid(data["answer"]) ? data["answer"] : null) ??
       (isValid(data["response"]) ? data["response"] : null) ??
-      // Last resort: find any string value in the object that isn't a template
       Object.values(data).find(isValid) ??
-      JSON.stringify(data);
+      null;
+
+    // All values were unevaluated n8n template expressions — workflow misconfiguration
+    if (!reply) {
+      logger.warn({ contractId, raw }, "n8n chat response contains only unevaluated templates — workflow config issue");
+      res.status(502).json({
+        error: "لم يتمكن المساعد من توليد رد. يرجى التواصل مع الفريق التقني لإصلاح إعدادات سير العمل.",
+      });
+      return;
+    }
 
     logger.info({ contractId, reply }, "Chat reply extracted");
     res.json({ reply });
