@@ -9,6 +9,8 @@ import { Register } from "@/pages/Register";
 import { Dashboard } from "@/pages/Dashboard";
 import { Upload } from "@/pages/Upload";
 import { DecisionRoom } from "@/pages/DecisionRoom";
+import { PaymentSuccess } from "@/pages/PaymentSuccess";
+import { PaymentFailed } from "@/pages/PaymentFailed";
 import { ProtectedLayout } from "@/components/layout/ProtectedLayout";
 
 const queryClient = new QueryClient();
@@ -40,6 +42,8 @@ function Router() {
           </ProtectedLayout>
         )}
       </Route>
+      <Route path="/payment-success" component={PaymentSuccess} />
+      <Route path="/payment-failed" component={PaymentFailed} />
       <Route component={NotFound} />
     </Switch>
   );

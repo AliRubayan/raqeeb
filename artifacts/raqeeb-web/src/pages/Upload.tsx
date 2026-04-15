@@ -5,12 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, File, Loader2 } from "lucide-react";
+import { UploadCloud, File, Loader2, CreditCard } from "lucide-react";
 
 export function Upload() {
   const [file, setFile] = useState<File | null>(null);
   const [contractName, setContractName] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStep, setUploadStep] = useState<"idle" | "uploading" | "payment">("idle");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -28,7 +29,6 @@ export function Upload() {
       }
       setFile(selectedFile);
       if (!contractName) {
-        // Remove .pdf extension for default name
         setContractName(selectedFile.name.replace(/\.pdf$/i, ""));
       }
     }
@@ -46,6 +46,7 @@ export function Upload() {
     }
 
     setIsUploading(true);
+    setUploadStep("uploading");
 
     const formData = new FormData();
     formData.append("file", file);
@@ -53,32 +54,63 @@ export function Upload() {
       formData.append("contractName", contractName);
     }
 
+    let contractId: string;
+
     try {
-      const response = await fetch("/api/contracts/upload", {
+      const uploadRes = await fetch("/api/contracts/upload", {
         method: "POST",
         body: formData,
-        credentials: "include"
+        credentials: "include",
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.error || "حدث خطأ أثناء رفع العقد");
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => null);
+        throw new Error(err?.error || "حدث خطأ أثناء رفع العقد");
       }
 
-      const data = await response.json();
-      
-      toast({
-        title: "تم رفع العقد بنجاح",
-        description: "جاري تحويلك إلى غرفة القرار...",
-      });
-      
-      setLocation(`/contracts/${data.id}`);
+      const uploadData = await uploadRes.json();
+      contractId = uploadData.id;
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "فشل الرفع",
         description: error.message || "حدث خطأ غير متوقع",
       });
+      setIsUploading(false);
+      setUploadStep("idle");
+      return;
+    }
+
+    setUploadStep("payment");
+
+    try {
+      const payRes = await fetch("/api/payments/create-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ contractId, contractName: contractName || file.name }),
+      });
+
+      if (!payRes.ok) {
+        const err = await payRes.json().catch(() => null);
+        throw new Error(err?.error || "تعذّر إنشاء رابط الدفع");
+      }
+
+      const payData = await payRes.json();
+
+      toast({
+        title: "جاري التوجيه إلى بوابة الدفع...",
+        description: "سيتم تحليل عقدك فور اكتمال الدفع",
+      });
+
+      window.location.href = payData.paymentUrl;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "فشل إنشاء رابط الدفع",
+        description: error.message || "حدث خطأ غير متوقع",
+      });
+      setLocation(`/contracts/${contractId!}`);
     } finally {
       setIsUploading(false);
     }
@@ -93,10 +125,21 @@ export function Upload() {
         </p>
       </div>
 
+      {uploadStep === "payment" && (
+        <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-3">
+          <CreditCard className="h-5 w-5 text-primary shrink-0" />
+          <p className="text-sm text-foreground">
+            تم رفع الملف بنجاح. جاري تحضير بوابة الدفع...
+          </p>
+        </div>
+      )}
+
       <Card className="border-border/60 shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl">تفاصيل العقد</CardTitle>
-          <CardDescription>أدخل اسم العقد وقم برفع الملف</CardDescription>
+          <CardDescription>
+            أدخل اسم العقد وقم برفع الملف — سيتم توجيهك للدفع قبل بدء التحليل
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -104,6 +147,7 @@ export function Upload() {
               <Label htmlFor="contractName">اسم العقد (اختياري)</Label>
               <Input
                 id="contractName"
+                data-testid="input-contract-name"
                 placeholder="مثال: عقد تأسيس شركة ذات مسؤولية محدودة"
                 value={contractName}
                 onChange={(e) => setContractName(e.target.value)}
@@ -112,8 +156,13 @@ export function Upload() {
 
             <div className="space-y-2">
               <Label>ملف العقد (PDF)</Label>
-              <div 
-                className={`border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer ${file ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-accent/50'}`}
+              <div
+                data-testid="upload-dropzone"
+                className={`border-2 border-dashed rounded-lg p-10 text-center transition-colors cursor-pointer ${
+                  file
+                    ? "border-primary/50 bg-primary/5"
+                    : "border-border hover:border-primary/50 hover:bg-accent/50"
+                }`}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -121,21 +170,28 @@ export function Upload() {
                   ref={fileInputRef}
                   className="hidden"
                   accept="application/pdf"
+                  data-testid="input-file"
                   onChange={handleFileChange}
                 />
-                
+
                 {file ? (
                   <div className="flex flex-col items-center">
                     <File className="h-10 w-10 text-primary mb-3" />
-                    <span className="font-medium text-foreground mb-1" dir="ltr">{file.name}</span>
+                    <span className="font-medium text-foreground mb-1" dir="ltr">
+                      {file.name}
+                    </span>
                     <span className="text-sm text-muted-foreground">
                       {(file.size / 1024 / 1024).toFixed(2)} MB
                     </span>
-                    <Button variant="link" className="mt-2 h-auto p-0 text-primary" onClick={(e) => {
-                      e.stopPropagation();
-                      setFile(null);
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                    }}>
+                    <Button
+                      variant="link"
+                      className="mt-2 h-auto p-0 text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                    >
                       تغيير الملف
                     </Button>
                   </div>
@@ -144,21 +200,33 @@ export function Upload() {
                     <UploadCloud className="h-10 w-10 mb-3 text-muted-foreground/60" />
                     <span className="font-medium text-foreground mb-1">انقر هنا لرفع الملف</span>
                     <span className="text-sm">أو قم بسحب وإفلات الملف هنا</span>
-                    <span className="text-xs mt-2 text-muted-foreground/70">الحد الأقصى 10 ميجابايت. PDF فقط.</span>
+                    <span className="text-xs mt-2 text-muted-foreground/70">
+                      الحد الأقصى 10 ميجابايت. PDF فقط.
+                    </span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="pt-4 border-t border-border flex justify-end">
-              <Button type="submit" size="lg" className="w-full md:w-auto" disabled={isUploading || !file}>
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                <CreditCard className="h-4 w-4 shrink-0" />
+                <span>سيتم توجيهك إلى بوابة StreamPay الآمنة لإتمام الدفع</span>
+              </div>
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                data-testid="button-submit"
+                disabled={isUploading || !file}
+              >
                 {isUploading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    جاري الرفع...
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    {uploadStep === "payment" ? "جاري التحويل للدفع..." : "جاري الرفع..."}
                   </>
                 ) : (
-                  "بدء التحليل"
+                  "رفع العقد والمتابعة للدفع"
                 )}
               </Button>
             </div>
