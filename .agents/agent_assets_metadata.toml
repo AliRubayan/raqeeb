@@ -12,3 +12,9 @@ id = "ai0zSNlfQSehGlRIkogrb"
 uri = "file://raqeeb.zip"
 type = "unspecified"
 title = "Raqeeb — Complete Project"
+
+[[outputs]]
+id = "lr2umR4sZRAw8Keqt_pCk"
+uri = "file://raqeeb-code.tar.gz"
+type = "unspecified"
+title = "Raqeeb — Full Source Code"
