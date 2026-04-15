@@ -40,6 +40,7 @@ N8N_API_KEY = "f71a6a84dc3f1e412c77c8df8da9d9066c3648cc1be54052bf3d48b7cc64e7cf"
 STREAM_API_KEY = "6p74kn2h3pay"
 STREAM_API_SECRET = "z2ztkuqm4u33vp3pe23pjq9qxm2syvyhhjr4s87r5vuge9u5yjy9ut9agmr585a7"
 N8NP2_WEBHOOK_URL = "https://n8n.srv1528224.hstgr.cloud/webhook-test/raqeeb-chat"
+N8N_WEBHOOK_URL = "https://n8n.srv1528224.hstgr.cloud/webhook-test/cb9856dd-27b1-4a3b-98a5-578399195fd9"
 
 [nix]
 channel = "stable-25_05"
