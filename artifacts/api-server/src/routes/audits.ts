@@ -2,6 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import {
   findContractById,
+  findLatestAnalyzingContract,
   updateContractStatus,
   updateContractStreamChannel,
 } from "../repositories/contracts";
@@ -111,53 +112,76 @@ router.post("/webhook/n8n", async (req, res) => {
     }
   }
 
-  const payload = req.body as N8nAuditPayload & {
-    contractId?: string;
-    contract_id?: string;
-  };
+  // n8n sends both camelCase and snake_case — accept all variants
+  const rawPayload = req.body as Record<string, unknown>;
 
-  logger.info({ payload }, "n8n webhook received — raw payload");
+  logger.info({ payload: rawPayload }, "n8n webhook received — raw payload");
 
-  // Accept both camelCase and snake_case for contractId
-  const contractId = payload.contractId ?? payload.contract_id;
+  // Resolve contractId: accept camelCase, snake_case, or n8n's own generated ID
+  const n8nContractId =
+    (rawPayload["contractId"] as string | undefined) ??
+    (rawPayload["contract_id"] as string | undefined);
 
-  if (!contractId) {
-    logger.warn({ payload }, "n8n webhook missing contractId — rejecting");
-    res.status(400).json({ error: "contractId is required in the n8n payload", received: payload });
-    return;
-  }
+  // Resolve result fields — n8n uses inspector/lawfinder/drafter (no _result suffix)
+  const inspectorResult =
+    (rawPayload["inspector"] as string | undefined) ??
+    (rawPayload["inspector_result"] as string | undefined) ??
+    "";
+  const lawResult =
+    (rawPayload["lawfinder"] as string | undefined) ??
+    (rawPayload["law_finder"] as string | undefined) ??
+    (rawPayload["law_result"] as string | undefined) ??
+    "";
+  const drafterResult =
+    (rawPayload["drafter"] as string | undefined) ??
+    (rawPayload["drafter_result"] as string | undefined) ??
+    "";
+  const riskScore = rawPayload["risk_score"] as number | undefined;
+  const severity = normalizeSeverity(String(rawPayload["severity"] ?? ""));
 
-  // Mutate so the rest of the handler uses the resolved value
-  payload.contractId = contractId;
+  // --- Contract resolution (Option A with fallback) ---
+  // 1. Try matching by the contractId n8n sent us
+  // 2. If not found (n8n generated its own ID), fall back to the most recent "Analyzing" contract
+  let contract = n8nContractId ? await findContractById(n8nContractId) : undefined;
 
-  const contract = await findContractById(payload.contractId);
   if (!contract) {
-    res.status(404).json({ error: "Contract not found" });
+    logger.warn(
+      { n8nContractId },
+      "n8n returned an unknown contractId — falling back to latest Analyzing contract",
+    );
+    contract = await findLatestAnalyzingContract();
+  }
+
+  if (!contract) {
+    logger.error({ n8nContractId, rawPayload }, "No Analyzing contract found to attach n8n results to");
+    res.status(404).json({ error: "No active contract found to attach these audit results to" });
     return;
   }
+
+  const resolvedContractId = contract.id;
 
   // Save the n8n results to the audit_results table
-  await saveAuditResult(payload.contractId, {
-    risk_score: payload.risk_score,
-    severity: normalizeSeverity(String(payload.severity)),
-    inspector_result: payload.inspector_result ?? "",
-    law_result: payload.law_result ?? "",
-    drafter_result: payload.drafter_result ?? "",
+  await saveAuditResult(resolvedContractId, {
+    risk_score: riskScore ?? 0,
+    severity,
+    inspector_result: inspectorResult,
+    law_result: lawResult,
+    drafter_result: drafterResult,
   });
 
   // Update contract status to Completed
-  await updateContractStatus(payload.contractId, "Completed");
+  await updateContractStatus(resolvedContractId, "Completed");
 
-  // Create a Stream Chat channel ID for the Decision Room (pattern: audit-{contractId})
-  const streamChannelId = `audit-${payload.contractId}`;
-  await updateContractStreamChannel(payload.contractId, streamChannelId);
+  // Create a Stream Chat channel ID for the Decision Room
+  const streamChannelId = `audit-${resolvedContractId}`;
+  await updateContractStreamChannel(resolvedContractId, streamChannelId);
 
   logger.info(
-    { contractId: payload.contractId, riskScore: payload.risk_score },
+    { resolvedContractId, n8nContractId, riskScore },
     "Audit results received and saved from n8n",
   );
 
-  res.json({ message: "Audit results saved successfully" });
+  res.json({ message: "Audit results saved successfully", contractId: resolvedContractId });
 });
 
 router.get("/:contractId", requireAuth, async (req, res) => {
