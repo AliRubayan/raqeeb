@@ -3,12 +3,12 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/dashboard/CleanModern.tsx": () => import("../components/mockups/dashboard/CleanModern.tsx"),
   "./components/mockups/dashboard/DarkLuxe.tsx": () => import("../components/mockups/dashboard/DarkLuxe.tsx"),
-  "./components/mockups/decision-room/CleanModern.tsx": () => import("../components/mockups/decision-room/CleanModern.tsx"),
-  "./components/mockups/decision-room/DarkLuxe.tsx": () => import("../components/mockups/decision-room/DarkLuxe.tsx"),
-  "./components/mockups/register/CleanModern.tsx": () => import("../components/mockups/register/CleanModern.tsx"),
-  "./components/mockups/register/DarkLuxe.tsx": () => import("../components/mockups/register/DarkLuxe.tsx"),
   "./components/mockups/login/CleanModern.tsx": () => import("../components/mockups/login/CleanModern.tsx"),
   "./components/mockups/login/DarkLuxe.tsx": () => import("../components/mockups/login/DarkLuxe.tsx"),
+  "./components/mockups/register/CleanModern.tsx": () => import("../components/mockups/register/CleanModern.tsx"),
+  "./components/mockups/register/DarkLuxe.tsx": () => import("../components/mockups/register/DarkLuxe.tsx"),
+  "./components/mockups/decision-room/CleanModern.tsx": () => import("../components/mockups/decision-room/CleanModern.tsx"),
+  "./components/mockups/decision-room/DarkLuxe.tsx": () => import("../components/mockups/decision-room/DarkLuxe.tsx"),
   "./components/mockups/upload/CleanModern.tsx": () => import("../components/mockups/upload/CleanModern.tsx"),
   "./components/mockups/upload/DarkLuxe.tsx": () => import("../components/mockups/upload/DarkLuxe.tsx")
 };
