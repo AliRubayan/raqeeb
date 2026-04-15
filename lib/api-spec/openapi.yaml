@@ -3,13 +3,22 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Raqeeb (رقيب) — Saudi FinTech Contract Audit API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: User authentication
+  - name: payments
+    description: StreamPay payment gating
+  - name: audits
+    description: Contract audit lifecycle
+  - name: contracts
+    description: Contract history and management
+
 paths:
   /healthz:
     get:
@@ -24,7 +33,342 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      tags: [auth]
+      summary: Log out
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /payments/create-link:
+    post:
+      operationId: createPaymentLink
+      tags: [payments]
+      summary: Create a StreamPay payment link for an audit
+      description: Creates a one-time StreamPay payment link. User must complete payment before the audit can start.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentLinkRequest"
+      responses:
+        "200":
+          description: Payment link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLinkResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /payments/verify/{contractId}:
+    get:
+      operationId: verifyPayment
+      tags: [payments]
+      summary: Verify payment completion for a contract
+      description: Checks StreamPay to confirm payment was completed, then marks the contract as Paid.
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Payment verification result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentVerifyResponse"
+        "404":
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /audits/start:
+    post:
+      operationId: startAudit
+      tags: [audits]
+      summary: Start an AI audit for a paid contract
+      description: >
+        Gatekeeper endpoint. Verifies payment, then sends the contract text to the n8n
+        webhook which orchestrates the three AI agents (Inspector, Law Finder, Drafter).
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartAuditRequest"
+      responses:
+        "202":
+          description: Audit started — agents are processing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditStartedResponse"
+        "402":
+          description: Payment required before audit can begin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Contract not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /audits/webhook/n8n:
+    post:
+      operationId: receiveN8nResult
+      tags: [audits]
+      summary: n8n webhook — receives AI agent results
+      description: >
+        Called by n8n when all three agents finish. Saves results to the database,
+        updates contract status to Completed, and sets up the Stream Chat Decision Room.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/N8nAuditResult"
+      responses:
+        "200":
+          description: Results saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /audits/{contractId}:
+    get:
+      operationId: getAuditResult
+      tags: [audits]
+      summary: Get the audit result for a contract
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Audit result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditResultResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /audits/{contractId}/action:
+    post:
+      operationId: auditAction
+      tags: [audits]
+      summary: Apply an action to an audit (Approve / Reject / Review)
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditActionRequest"
+      responses:
+        "200":
+          description: Action applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditActionResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /contracts:
+    post:
+      operationId: createContract
+      tags: [contracts]
+      summary: Create a new contract record
+      description: Creates the contract shell before payment. Returns contractId used throughout the system.
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContractRequest"
+      responses:
+        "201":
+          description: Contract created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractResponse"
+
+  /contracts/history:
+    get:
+      operationId: getContractHistory
+      tags: [contracts]
+      summary: Get all past contracts for the current user (Dashboard)
+      security:
+        - cookieAuth: []
+      responses:
+        "200":
+          description: List of past contracts with audit summaries
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractHistoryResponse"
+
+  /contracts/{contractId}:
+    get:
+      operationId: getContract
+      tags: [contracts]
+      summary: Get a single contract with full detail
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: contractId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Contract detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ContractDetailResponse"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: raqeeb_session
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +378,321 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+      required:
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserProfile"
+        message:
+          type: string
+      required:
+        - user
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        hasActiveSubscription:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - hasActiveSubscription
+        - createdAt
+
+    CreatePaymentLinkRequest:
+      type: object
+      properties:
+        contractId:
+          type: string
+          format: uuid
+        contractName:
+          type: string
+      required:
+        - contractId
+        - contractName
+
+    PaymentLinkResponse:
+      type: object
+      properties:
+        paymentLinkId:
+          type: string
+        paymentUrl:
+          type: string
+        status:
+          type: string
+          enum: [INACTIVE, ACTIVE, COMPLETED]
+        contractId:
+          type: string
+          format: uuid
+      required:
+        - paymentLinkId
+        - paymentUrl
+        - status
+        - contractId
+
+    PaymentVerifyResponse:
+      type: object
+      properties:
+        paid:
+          type: boolean
+        contractId:
+          type: string
+          format: uuid
+        status:
+          type: string
+      required:
+        - paid
+        - contractId
+        - status
+
+    CreateContractRequest:
+      type: object
+      properties:
+        contractName:
+          type: string
+        contractText:
+          type: string
+      required:
+        - contractName
+        - contractText
+
+    ContractResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        contractName:
+          type: string
+        status:
+          type: string
+          enum: [Paid, Analyzing, Completed, Rejected]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - contractName
+        - status
+        - createdAt
+
+    ContractDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        contractName:
+          type: string
+        status:
+          type: string
+          enum: [Paid, Analyzing, Completed, Rejected]
+        streamChannelId:
+          type: string
+          nullable: true
+        streamPayPaymentLinkUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        auditResult:
+          $ref: "#/components/schemas/AuditResultSummary"
+          nullable: true
+      required:
+        - id
+        - contractName
+        - status
+        - createdAt
+
+    ContractHistoryResponse:
+      type: object
+      properties:
+        contracts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContractDetailResponse"
+      required:
+        - contracts
+
+    StartAuditRequest:
+      type: object
+      properties:
+        contractId:
+          type: string
+          format: uuid
+      required:
+        - contractId
+
+    AuditStartedResponse:
+      type: object
+      properties:
+        contractId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        message:
+          type: string
+      required:
+        - contractId
+        - status
+        - message
+
+    N8nAuditResult:
+      type: object
+      properties:
+        contractId:
+          type: string
+          format: uuid
+        risk_score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        severity:
+          type: string
+          enum: [Low, Medium, High]
+        inspector_result:
+          type: string
+        law_result:
+          type: string
+        drafter_result:
+          type: string
+      required:
+        - contractId
+        - risk_score
+        - severity
+        - inspector_result
+        - law_result
+        - drafter_result
+
+    AuditResultSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        riskScore:
+          type: integer
+        severity:
+          type: string
+          enum: [Low, Medium, High]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - riskScore
+        - severity
+        - createdAt
+
+    AuditResultResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        contractId:
+          type: string
+          format: uuid
+        riskScore:
+          type: integer
+        severity:
+          type: string
+          enum: [Low, Medium, High]
+        inspectorOutput:
+          type: string
+        lawFinderOutput:
+          type: string
+        drafterOutput:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - contractId
+        - riskScore
+        - severity
+        - inspectorOutput
+        - lawFinderOutput
+        - drafterOutput
+        - createdAt
+
+    AuditActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          enum: [Approve, Reject, Review]
+      required:
+        - action
+
+    AuditActionResponse:
+      type: object
+      properties:
+        contractId:
+          type: string
+          format: uuid
+        action:
+          type: string
+          enum: [Approve, Reject, Review]
+        newStatus:
+          type: string
+          enum: [Paid, Analyzing, Completed, Rejected]
+        message:
+          type: string
+      required:
+        - contractId
+        - action
+        - newStatus
+        - message

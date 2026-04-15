@@ -5,7 +5,8 @@
  * Raqeeb (رقيب) — Saudi FinTech Contract Audit API
  * OpenAPI spec version: 0.1.0
  */
+import type { ContractDetailResponse } from "./contractDetailResponse";
 
-export interface HealthStatus {
-  status: string;
+export interface ContractHistoryResponse {
+  contracts: ContractDetailResponse[];
 }
