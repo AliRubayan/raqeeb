@@ -47,7 +47,9 @@ router.post("/", requireAuth, async (req, res) => {
       body: JSON.stringify({
         contract_id: contractId,
         contractId,
+        contract_name: contract.contractName,
         contractName: contract.contractName,
+        contract_text: contract.contractText,
         contractText: contract.contractText,
         message,
         userId: req.session.userId,
