@@ -39,7 +39,7 @@ externalPort = 3002
 
 [userenv.shared]
 STREAMPAY_BASE_URL = "https://stream-app-service.streampay.sa"
-STREAMPAY_AUDIT_PRODUCT_ID = "b226649e-dc8a-4bb9-9b9e-1ddd90d26b58"
+STREAMPAY_AUDIT_PRODUCT_ID = "3704bb43-1cc4-4504-9dfa-f606572f2931"
 N8N_API_KEY = "f71a6a84dc3f1e412c77c8df8da9d9066c3648cc1be54052bf3d48b7cc64e7cf"
 STREAM_API_KEY = "6p74kn2h3pay"
 STREAM_API_SECRET = "z2ztkuqm4u33vp3pe23pjq9qxm2syvyhhjr4s87r5vuge9u5yjy9ut9agmr585a7"
