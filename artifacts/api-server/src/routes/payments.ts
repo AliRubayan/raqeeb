@@ -1,13 +1,17 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { createPaymentLink, isPaymentCompleted } from "../lib/streampay";
-import { findContractById, updateContractPaymentLink, updateContractStatus } from "../repositories/contracts";
+import {
+  findContractById,
+  updateContractPaymentLink,
+  updateContractStatus,
+} from "../repositories/contracts";
 import { setActiveSubscription } from "../repositories/users";
 
 const router = Router();
 
-const AUDIT_PRODUCT_ID =
-  process.env["STREAMPAY_AUDIT_PRODUCT_ID"] ?? "b226649e-dc8a-4bb9-9b9e-1ddd90d26b58";
+const SUBSCRIPTION_PRODUCT_ID =
+  process.env["STREAMPAY_AUDIT_PRODUCT_ID"] ?? "75ce36be-0331-48d6-a40a-0b8b44b839f6";
 
 router.post("/create-link", requireAuth, async (req, res) => {
   const { contractId, contractName } = req.body as {
@@ -36,9 +40,9 @@ router.post("/create-link", requireAuth, async (req, res) => {
     : "http://localhost:80";
 
   const paymentLink = await createPaymentLink({
-    name: `رقيب — ${contractName}`,
-    description: `Contract audit: ${contractName}`,
-    items: [{ product_id: AUDIT_PRODUCT_ID, quantity: 1 }],
+    name: `اشتراك رقيب — ${contractName}`,
+    description: `اشتراك دائم للوصول إلى تحليل العقود`,
+    items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
     contractId,
     successRedirectUrl: `${baseUrl}/payment-success?contractId=${contractId}`,
     failureRedirectUrl: `${baseUrl}/payment-failed?contractId=${contractId}`,
@@ -75,7 +79,8 @@ router.get("/verify/:contractId", requireAuth, async (req, res) => {
 
   const paid = await isPaymentCompleted(contract.streamPayPaymentLinkId);
 
-  if (paid && contract.status === "Paid") {
+  if (paid) {
+    await updateContractStatus(contractId, "Paid");
     await setActiveSubscription(req.session.userId!, true);
   }
 
