@@ -1,4 +1,4 @@
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import {
   db,
   contractsTable,
@@ -53,18 +53,24 @@ export async function deleteContract(contractId: string): Promise<void> {
 }
 
 /**
- * Find the most recently updated contract in "Analyzing" status.
- * Used as a fallback when n8n returns its own generated contractId
- * that doesn't match our DB records.
+ * Upsert a contract using n8n's own contractId as the primary key.
+ * If a row with that ID already exists, it is left unchanged (ON CONFLICT DO NOTHING).
+ * This lets us INSERT directly from n8n's callback without a prior lookup.
  */
-export async function findLatestAnalyzingContract(): Promise<Contract | undefined> {
-  const result = await db
-    .select()
-    .from(contractsTable)
-    .where(and(eq(contractsTable.status, "Analyzing")))
-    .orderBy(desc(contractsTable.updatedAt))
-    .limit(1);
-  return result[0];
+export async function upsertContractFromN8n(data: {
+  id: string;
+  userId: string;
+  contractName: string;
+  contractText: string;
+  status?: Contract["status"];
+}): Promise<void> {
+  await db
+    .insert(contractsTable)
+    .values({
+      ...data,
+      status: data.status ?? "Completed",
+    } as typeof contractsTable.$inferInsert)
+    .onConflictDoNothing();
 }
 
 export async function updateContractPaymentLink(
