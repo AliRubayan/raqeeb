@@ -96,23 +96,16 @@ router.post(
     });
 
     logger.info(
-      { contractId: contract.id, userId: req.session.userId, pages: (req as any).file?.size },
-      "PDF uploaded and contract created",
+      { contractId: contract.id, userId: req.session.userId, textLength: contractText.length },
+      "PDF uploaded and contract created — awaiting payment",
     );
-
-    await dispatchToN8n({
-      contractId: contract.id,
-      contractName: contract.contractName,
-      contractText,
-      userId: req.session.userId!,
-    });
 
     res.status(201).json({
       id: contract.id,
       contractName: contract.contractName,
-      status: "Analyzing",
+      status: "Paid",
       createdAt: contract.createdAt,
-      message: "PDF uploaded and sent to AI agents for analysis.",
+      message: "PDF uploaded successfully. Complete payment to start AI analysis.",
       textLength: contractText.length,
     });
   },
