@@ -31,6 +31,7 @@ externalPort = 80
 
 [userenv.shared]
 STREAMPAY_BASE_URL = "https://stream-app-service.streampay.sa"
+STREAMPAY_AUDIT_PRODUCT_ID = "b226649e-dc8a-4bb9-9b9e-1ddd90d26b58"
 
 [nix]
 channel = "stable-25_05"
