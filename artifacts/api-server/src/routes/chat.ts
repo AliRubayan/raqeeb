@@ -59,15 +59,28 @@ router.post("/", requireAuth, async (req, res) => {
       throw new Error(`n8n returned ${n8nRes.status}`);
     }
 
-    const data = await n8nRes.json() as Record<string, unknown>;
+    const raw = await n8nRes.json() as unknown;
+    logger.info({ contractId, raw }, "Raw n8n chat response");
+
+    // n8n sometimes wraps response in an array — unwrap it
+    const data = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown>;
+
+    // Pick first non-empty, non-template-literal string value
+    const isValid = (v: unknown): v is string =>
+      typeof v === "string" && v.trim().length > 0 && !v.includes("{{");
+
     const reply =
-      (data["reply"] as string) ??
-      (data["message"] as string) ??
-      (data["output"] as string) ??
-      (data["text"] as string) ??
+      (isValid(data["reply"]) ? data["reply"] : null) ??
+      (isValid(data["message"]) ? data["message"] : null) ??
+      (isValid(data["output"]) ? data["output"] : null) ??
+      (isValid(data["text"]) ? data["text"] : null) ??
+      (isValid(data["answer"]) ? data["answer"] : null) ??
+      (isValid(data["response"]) ? data["response"] : null) ??
+      // Last resort: find any string value in the object that isn't a template
+      Object.values(data).find(isValid) ??
       JSON.stringify(data);
 
-    logger.info({ contractId }, "Chat reply received from n8n");
+    logger.info({ contractId, reply }, "Chat reply extracted");
     res.json({ reply });
   } catch (err: any) {
     if (err.name === "AbortError") {
