@@ -62,16 +62,20 @@ router.post("/start", requireAuth, async (req, res) => {
 
   // Fire and forget to n8n webhook
   if (N8N_WEBHOOK_URL) {
+    const n8nPayload = {
+      contract_id: contractId,
+      contractId,
+      contract_text: contract.contractText,
+      contractText: contract.contractText,
+      contract_name: contract.contractName,
+      contractName: contract.contractName,
+      userId: req.session.userId,
+    };
+    logger.info({ contractId, textLength: contract.contractText?.length ?? 0 }, "Sending contract to n8n");
     fetch(N8N_WEBHOOK_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contract_id: contractId,
-        contractId,
-        contractText: contract.contractText,
-        contractName: contract.contractName,
-        userId: req.session.userId,
-      }),
+      body: JSON.stringify(n8nPayload),
     }).catch((err) => {
       logger.error({ err, contractId }, "Failed to send contract to n8n webhook");
     });
@@ -228,8 +232,11 @@ router.post("/:contractId/action", requireAuth, async (req, res) => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            contract_id: contractId,
             contractId,
+            contract_text: contract.contractText,
             contractText: contract.contractText,
+            contract_name: contract.contractName,
             contractName: contract.contractName,
             userId: contract.userId,
             isReview: true,
