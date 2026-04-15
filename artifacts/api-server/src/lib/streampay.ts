@@ -3,18 +3,41 @@ import { logger } from "./logger";
 const STREAMPAY_BASE_URL =
   process.env["STREAMPAY_BASE_URL"] ?? "https://stream-app-service.streampay.sa";
 
-const STREAMPAY_API_KEY = process.env["STREAMPAY_API_KEY"];
+// The X-API-Key is the Base64-encoded "apiKey:secret" credential
+const STREAMPAY_X_API_KEY = process.env["STREAMPAY_X_API_KEY"];
 
-function getHeaders(): HeadersInit {
-  if (!STREAMPAY_API_KEY) {
+function getHeaders(): Record<string, string> {
+  if (!STREAMPAY_X_API_KEY) {
     throw new Error(
-      "STREAMPAY_API_KEY is not set. Please add it to your environment secrets.",
+      "STREAMPAY_X_API_KEY is not set. Please add it to your environment secrets.",
     );
   }
   return {
     "Content-Type": "application/json",
-    "X-API-Key": STREAMPAY_API_KEY,
+    "X-API-Key": STREAMPAY_X_API_KEY,
   };
+}
+
+function withTimeout(ms: number): AbortSignal {
+  return AbortSignal.timeout(ms);
+}
+
+export async function verifyConnection(): Promise<{ ok: boolean; org?: string; error?: string }> {
+  try {
+    const response = await fetch(`${STREAMPAY_BASE_URL}/api/v2/me`, {
+      method: "GET",
+      headers: getHeaders(),
+      signal: withTimeout(15000),
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      return { ok: false, error: `HTTP ${response.status}: ${text}` };
+    }
+    const data = (await response.json()) as { organization?: { name?: string } };
+    return { ok: true, org: data?.organization?.name };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 }
 
 export interface StreamPayProduct {
@@ -58,6 +81,7 @@ export async function createPaymentLink(
     method: "POST",
     headers: getHeaders(),
     body: JSON.stringify(body),
+    signal: withTimeout(20000),
   });
 
   if (!response.ok) {
@@ -76,6 +100,7 @@ export async function getPaymentLink(paymentLinkId: string): Promise<PaymentLink
     {
       method: "GET",
       headers: getHeaders(),
+      signal: withTimeout(15000),
     },
   );
 
