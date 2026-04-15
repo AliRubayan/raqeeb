@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
+export interface PaymentVerifyResponse {
+  paid: boolean;
+  contractId: string;
   status: string;
 }
