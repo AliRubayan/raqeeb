@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import {
   db,
   contractsTable,
@@ -50,6 +50,21 @@ export async function updateContractStreamChannel(
 
 export async function deleteContract(contractId: string): Promise<void> {
   await db.delete(contractsTable).where(eq(contractsTable.id, contractId));
+}
+
+/**
+ * Find the most recently updated contract in "Analyzing" status.
+ * Used as a fallback when n8n returns its own generated contractId
+ * that doesn't match our DB records.
+ */
+export async function findLatestAnalyzingContract(): Promise<Contract | undefined> {
+  const result = await db
+    .select()
+    .from(contractsTable)
+    .where(and(eq(contractsTable.status, "Analyzing")))
+    .orderBy(desc(contractsTable.updatedAt))
+    .limit(1);
+  return result[0];
 }
 
 export async function updateContractPaymentLink(
