@@ -48,6 +48,10 @@ export async function updateContractStreamChannel(
     .where(eq(contractsTable.id, contractId));
 }
 
+export async function deleteContract(contractId: string): Promise<void> {
+  await db.delete(contractsTable).where(eq(contractsTable.id, contractId));
+}
+
 export async function updateContractPaymentLink(
   contractId: string,
   paymentLinkId: string,
