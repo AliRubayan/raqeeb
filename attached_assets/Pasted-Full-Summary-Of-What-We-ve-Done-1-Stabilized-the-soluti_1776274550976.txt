@@ -1,0 +1,126 @@
+Full Summary Of What We’ve Done
+1) Stabilized the solution and fixed build blockers
+Fixed missing dependency references in Raqeeb.Application (Microsoft.Extensions.*).
+Fixed auth hashing usage and package references for BCrypt.
+Resolved repeated DLL lock/build-copy issues (MSB3021/MSB3027) by clearing stale running Raqeeb.API processes when needed.
+Rebuilt successfully multiple times (dotnet build Raqeeb.sln).
+2) Implemented frontend pages and JS wiring in wwwroot
+Since no frontend files were present initially, added minimal working pages:
+
+login.html
+register.html
+upload.html
+decision-room.html
+dashboard.html
+app.js
+Wiring includes:
+
+login/register via real API
+authenticated checks (/api/auth/me)
+upload flow
+payment creation + redirect
+dashboard/history fetch
+report download trigger
+3) Added/updated core backend integration
+Added/kept auth/session API flow.
+Added payment create route compatibility:
+POST /api/payments/create-link
+POST /api/payments/create
+Added report endpoint:
+GET /api/audits/{contractId}/report
+includes dynamic “13.9 Days Saved”.
+4) Stream Chat agent impersonation logic
+Extended StreamService to:
+ensure channel exists
+upsert agent users/personas
+publish 3 agent messages sequentially:
+inspector_ai (🔍)
+oracle_ai (⚖️)
+lawyer_ai (💼)
+Added interface method for direct post:
+PostAgentMessages(contractId, result)
+5) n8n webhook handling and DTOs
+Added robust n8n ingestion support.
+Added new DTO:
+N8nAuditResponse with snake_case mapping.
+Added dedicated receiver endpoint:
+POST /api/audit/webhook-receiver
+allows anonymous, optional API key validation (N8n:ApiKey + X-Api-Key).
+Logic in receiver:
+find contract by contract_id
+create/save AuditResult
+set contract status to Completed
+push 3 agent messages to Stream live.
+Also kept compatibility for previous /api/audits/webhook/n8n style payloads.
+6) Upload flow redesigned per your requirements
+You asked for:
+
+PDF-only upload
+convert PDF to text
+send required data
+then go to payment
+Implemented:
+
+POST /api/contracts/upload-pdf
+server-side PDF text extraction (UglyToad.PdfPig)
+input validation for PDF
+contract value handling
+required contract name added later per your feedback
+frontend simplified to required fields only:
+Contract Name
+Contract PDF
+Contract Value
+7) Payment timing changed to post-payment trigger
+You requested audit trigger after payment.
+
+Implemented:
+
+Added PendingPayment status.
+New uploads/contracts start as PendingPayment.
+Removed n8n trigger during upload.
+On payment callback success:
+subscription marked active
+contract status -> Paid
+audit start invoked (which triggers n8n/analysis flow)
+8) CORS and app startup behavior
+Set named CORS policy in Program.cs with localhost origins + credentials.
+Confirmed static hosting and controller mapping for frontend/API.
+Addressed repeated localhost port conflicts by changing launch profile ports to:
+https://localhost:7061
+http://localhost:7062
+9) Config and secret wiring
+Updated appsettings.Development.json with provided values:
+
+Stream:
+ApiKey
+ApiSecret
+AppId
+StreamPay:
+ApiKey
+XApiKey
+Secret
+AuditProductId
+BaseUrl
+n8n:
+WebhookUrl
+10) Improved error diagnostics
+Frontend now shows clearer network/upload errors instead of vague failures.
+Payment create now returns structured errors instead of raw crash:
+error
+details
+StreamPay errors now include full response body for fast schema debugging.
+11) StreamPay 422 fixes
+From your returned 422 (name and items missing):
+
+Updated payload to include required fields:
+name
+items
+Then, per your testing request, set test/zero values:
+top-level amount = 0
+item amount = 0, plus item name, quantity, product_id
+Current state now
+Project builds clean.
+Auth -> upload -> payment pipeline is implemented.
+n8n receiver and Stream agent posting are implemented.
+Main unresolved area (if any remains) is external gateway schema/runtime behavior (StreamPay) during live test, which we now diagnose quickly via detailed details error payloads.
+If you want, next I can give you a final “judge demo runbook” with exact click path + expected response at each step.
