@@ -4,7 +4,9 @@ import {
   findContractById,
   updateContractStatus,
   updateContractPaymentLink,
+  updateContractStreamChannel,
 } from "../repositories/contracts";
+import { saveAuditResult } from "../repositories/audit-results";
 import { setActiveSubscription } from "../repositories/users";
 import { logger } from "../lib/logger";
 
@@ -70,6 +72,56 @@ if (process.env["NODE_ENV"] === "production") {
       message: "[DEV] Payment simulated. Audit started — n8n webhook fired. Watch logs for n8n response.",
       n8nFired: !!N8N_WEBHOOK_URL,
       note: "This endpoint only works in development. It will return 404 in production.",
+    });
+  });
+
+  router.post("/simulate-n8n/:contractId", async (req, res) => {
+    const contractId = req.params.contractId as string;
+
+    const contract = await findContractById(contractId);
+    if (!contract) {
+      res.status(404).json({ error: "Contract not found" });
+      return;
+    }
+
+    const {
+      risk_score = 7.5,
+      severity = "High",
+      inspector_result = "Inspector result (simulated).",
+      law_result = "Law result (simulated).",
+      drafter_result = "Drafter result (simulated).",
+    } = req.body as {
+      risk_score?: number;
+      severity?: string;
+      inspector_result?: string;
+      law_result?: string;
+      drafter_result?: string;
+    };
+
+    const normSeverity = (s: string): "Low" | "Medium" | "High" => {
+      const l = s.toLowerCase();
+      if (l === "high") return "High";
+      if (l === "medium" || l === "med") return "Medium";
+      return "Low";
+    };
+
+    await saveAuditResult(contractId, {
+      risk_score,
+      severity: normSeverity(severity),
+      inspector_result,
+      law_result,
+      drafter_result,
+    });
+
+    await updateContractStatus(contractId, "Completed");
+    await updateContractStreamChannel(contractId, `audit-${contractId}`);
+
+    logger.info({ contractId }, "[DEV] Simulated n8n audit result saved");
+
+    res.json({
+      success: true,
+      contractId,
+      message: "[DEV] Audit result saved. Contract is now Completed.",
     });
   });
 

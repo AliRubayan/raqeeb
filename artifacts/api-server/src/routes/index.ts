@@ -6,6 +6,7 @@ import contractsRouter from "./contracts";
 import auditsRouter from "./audits";
 import streamRouter from "./stream";
 import devRouter from "./dev";
+import testuiRouter from "./testui";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use("/contracts", contractsRouter);
 router.use("/audits", auditsRouter);
 router.use("/stream", streamRouter);
 router.use("/dev", devRouter);
+router.use(testuiRouter);
 
 export default router;
