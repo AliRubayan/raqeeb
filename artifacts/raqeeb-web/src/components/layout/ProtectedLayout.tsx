@@ -1,5 +1,5 @@
 import { useGetMe, useLogoutUser } from "@workspace/api-client-react";
-import { useLocation, Link } from "wouter";
+import { useLocation, Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { ReactNode } from "react";
@@ -18,8 +18,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   }
 
   if (error || !user) {
-    setLocation("/login");
-    return null;
+    return <Redirect to="/login" />;
   }
 
   const handleLogout = () => {
@@ -49,7 +48,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground">{user.email}</span>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <Button variant="outline" size="sm" onClick={handleLogout} data-testid="button-logout">
               تسجيل الخروج
             </Button>
           </div>
