@@ -11,6 +11,7 @@ import {
   type N8nAuditPayload,
 } from "../repositories/audit-results";
 import { isPaymentCompleted } from "../lib/streampay";
+import { findUserById } from "../repositories/users";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -36,8 +37,17 @@ router.post("/start", requireAuth, async (req, res) => {
     return;
   }
 
-  // Gatekeeper: verify StreamPay payment before proceeding
-  if (contract.streamPayPaymentLinkId) {
+  // Gatekeeper: allow if user has active subscription OR payment verified
+  const user = await findUserById(req.session.userId!);
+  const hasSubscription = user?.hasActiveSubscription ?? false;
+
+  if (!hasSubscription) {
+    if (!contract.streamPayPaymentLinkId) {
+      res.status(402).json({
+        error: "Subscription required. Please subscribe before starting the audit.",
+      });
+      return;
+    }
     const paid = await isPaymentCompleted(contract.streamPayPaymentLinkId);
     if (!paid) {
       res.status(402).json({
