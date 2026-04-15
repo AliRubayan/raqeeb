@@ -76,6 +76,13 @@ router.post("/start", requireAuth, async (req, res) => {
   });
 });
 
+function normalizeSeverity(raw: string): "Low" | "Medium" | "High" {
+  const s = (raw ?? "").toLowerCase();
+  if (s === "high") return "High";
+  if (s === "medium" || s === "med") return "Medium";
+  return "Low";
+}
+
 // Called by n8n when all three AI agents finish
 router.post("/webhook/n8n", async (req, res) => {
   const payload = req.body as N8nAuditPayload & { contractId?: string };
@@ -94,10 +101,10 @@ router.post("/webhook/n8n", async (req, res) => {
   // Save the n8n results to the audit_results table
   await saveAuditResult(payload.contractId, {
     risk_score: payload.risk_score,
-    severity: payload.severity,
-    inspector_result: payload.inspector_result,
-    law_result: payload.law_result,
-    drafter_result: payload.drafter_result,
+    severity: normalizeSeverity(String(payload.severity)),
+    inspector_result: payload.inspector_result ?? "",
+    law_result: payload.law_result ?? "",
+    drafter_result: payload.drafter_result ?? "",
   });
 
   // Update contract status to Completed

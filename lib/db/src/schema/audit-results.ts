@@ -1,4 +1,4 @@
-import { pgTable, uuid, integer, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, uuid, real, text, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { contractsTable } from "./contracts";
@@ -10,7 +10,7 @@ export const auditResultsTable = pgTable("audit_results", {
   contractId: uuid("contract_id")
     .notNull()
     .references(() => contractsTable.id, { onDelete: "cascade" }),
-  riskScore: integer("risk_score").notNull().default(0),
+  riskScore: real("risk_score").notNull().default(0),
   severity: severityEnum("severity").notNull().default("Low"),
   inspectorOutput: text("inspector_output").notNull().default(""),
   lawFinderOutput: text("law_finder_output").notNull().default(""),
