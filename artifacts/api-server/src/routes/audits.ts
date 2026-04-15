@@ -106,12 +106,24 @@ router.post("/webhook/n8n", async (req, res) => {
     }
   }
 
-  const payload = req.body as N8nAuditPayload & { contractId?: string };
+  const payload = req.body as N8nAuditPayload & {
+    contractId?: string;
+    contract_id?: string;
+  };
 
-  if (!payload.contractId) {
-    res.status(400).json({ error: "contractId is required in the n8n payload" });
+  logger.info({ payload }, "n8n webhook received — raw payload");
+
+  // Accept both camelCase and snake_case for contractId
+  const contractId = payload.contractId ?? payload.contract_id;
+
+  if (!contractId) {
+    logger.warn({ payload }, "n8n webhook missing contractId — rejecting");
+    res.status(400).json({ error: "contractId is required in the n8n payload", received: payload });
     return;
   }
+
+  // Mutate so the rest of the handler uses the resolved value
+  payload.contractId = contractId;
 
   const contract = await findContractById(payload.contractId);
   if (!contract) {
