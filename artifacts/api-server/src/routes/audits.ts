@@ -84,7 +84,18 @@ function normalizeSeverity(raw: string): "Low" | "Medium" | "High" {
 }
 
 // Called by n8n when all three AI agents finish
+// n8n must include the header: X-Api-Key: <N8N_API_KEY>
 router.post("/webhook/n8n", async (req, res) => {
+  const N8N_API_KEY = process.env["N8N_API_KEY"];
+  if (N8N_API_KEY) {
+    const incoming = req.headers["x-api-key"];
+    if (!incoming || incoming !== N8N_API_KEY) {
+      logger.warn({ ip: req.ip }, "n8n webhook rejected — invalid or missing X-Api-Key");
+      res.status(401).json({ error: "Unauthorized: invalid API key" });
+      return;
+    }
+  }
+
   const payload = req.body as N8nAuditPayload & { contractId?: string };
 
   if (!payload.contractId) {
