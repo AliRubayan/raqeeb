@@ -5,6 +5,7 @@ import paymentsRouter from "./payments";
 import contractsRouter from "./contracts";
 import auditsRouter from "./audits";
 import streamRouter from "./stream";
+import chatRouter from "./chat";
 import devRouter from "./dev";
 import testuiRouter from "./testui";
 
@@ -16,6 +17,7 @@ router.use("/payments", paymentsRouter);
 router.use("/contracts", contractsRouter);
 router.use("/audits", auditsRouter);
 router.use("/stream", streamRouter);
+router.use("/chat", chatRouter);
 router.use("/dev", devRouter);
 router.use(testuiRouter);
 
