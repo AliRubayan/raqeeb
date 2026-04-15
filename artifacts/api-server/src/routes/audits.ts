@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import {
   findContractById,
-  findLatestAnalyzingContract,
+  upsertContractFromN8n,
   updateContractStatus,
   updateContractStreamChannel,
 } from "../repositories/contracts";
@@ -112,17 +112,28 @@ router.post("/webhook/n8n", async (req, res) => {
     }
   }
 
-  // n8n sends both camelCase and snake_case — accept all variants
   const rawPayload = req.body as Record<string, unknown>;
-
   logger.info({ payload: rawPayload }, "n8n webhook received — raw payload");
 
-  // Resolve contractId: accept camelCase, snake_case, or n8n's own generated ID
-  const n8nContractId =
+  // --- Extract all fields n8n sends (accept camelCase + snake_case) ---
+  const contractId =
     (rawPayload["contractId"] as string | undefined) ??
     (rawPayload["contract_id"] as string | undefined);
 
-  // Resolve result fields — n8n uses inspector/lawfinder/drafter (no _result suffix)
+  const userId =
+    (rawPayload["userId"] as string | undefined) ??
+    (rawPayload["user_id"] as string | undefined);
+
+  const contractText =
+    (rawPayload["contractText"] as string | undefined) ??
+    (rawPayload["contract_text"] as string | undefined) ??
+    "";
+
+  const contractName =
+    (rawPayload["contractName"] as string | undefined) ??
+    (rawPayload["contract_name"] as string | undefined) ??
+    "عقد";
+
   const inspectorResult =
     (rawPayload["inspector"] as string | undefined) ??
     (rawPayload["inspector_result"] as string | undefined) ??
@@ -136,52 +147,41 @@ router.post("/webhook/n8n", async (req, res) => {
     (rawPayload["drafter"] as string | undefined) ??
     (rawPayload["drafter_result"] as string | undefined) ??
     "";
-  const riskScore = rawPayload["risk_score"] as number | undefined;
+  const riskScore = Number(rawPayload["risk_score"] ?? 0);
   const severity = normalizeSeverity(String(rawPayload["severity"] ?? ""));
 
-  // --- Contract resolution (Option A with fallback) ---
-  // 1. Try matching by the contractId n8n sent us
-  // 2. If not found (n8n generated its own ID), fall back to the most recent "Analyzing" contract
-  let contract = n8nContractId ? await findContractById(n8nContractId) : undefined;
-
-  if (!contract) {
-    logger.warn(
-      { n8nContractId },
-      "n8n returned an unknown contractId — falling back to latest Analyzing contract",
-    );
-    contract = await findLatestAnalyzingContract();
-  }
-
-  if (!contract) {
-    logger.error({ n8nContractId, rawPayload }, "No Analyzing contract found to attach n8n results to");
-    res.status(404).json({ error: "No active contract found to attach these audit results to" });
+  if (!contractId) {
+    logger.warn({ rawPayload }, "n8n webhook missing contractId — rejecting");
+    res.status(400).json({ error: "contractId is required", received: Object.keys(rawPayload) });
     return;
   }
 
-  const resolvedContractId = contract.id;
+  // --- Step 1: Ensure contract row exists (INSERT if needed, skip if already there) ---
+  // n8n may use its own UUID — we create the row so the FK constraint is satisfied.
+  // If contract already exists (uploaded via our UI), ON CONFLICT DO NOTHING keeps it intact.
+  if (userId) {
+    await upsertContractFromN8n({ id: contractId, userId, contractText, contractName, status: "Completed" });
+  } else {
+    // No userId in payload — contract must already exist from the upload flow.
+    // Silently continue; the FK check will catch a truly unknown ID at INSERT time.
+    logger.warn({ contractId }, "n8n callback missing userId — assuming contract already exists in DB");
+  }
 
-  // Save the n8n results to the audit_results table
-  await saveAuditResult(resolvedContractId, {
-    risk_score: riskScore ?? 0,
+  // --- Step 2: INSERT audit result directly ---
+  await saveAuditResult(contractId, {
+    risk_score: riskScore,
     severity,
     inspector_result: inspectorResult,
     law_result: lawResult,
     drafter_result: drafterResult,
   });
 
-  // Update contract status to Completed
-  await updateContractStatus(resolvedContractId, "Completed");
+  // --- Step 3: Mark contract Completed + set Stream channel ---
+  await updateContractStatus(contractId, "Completed");
+  await updateContractStreamChannel(contractId, `audit-${contractId}`);
 
-  // Create a Stream Chat channel ID for the Decision Room
-  const streamChannelId = `audit-${resolvedContractId}`;
-  await updateContractStreamChannel(resolvedContractId, streamChannelId);
-
-  logger.info(
-    { resolvedContractId, n8nContractId, riskScore },
-    "Audit results received and saved from n8n",
-  );
-
-  res.json({ message: "Audit results saved successfully", contractId: resolvedContractId });
+  logger.info({ contractId, riskScore }, "Audit results inserted from n8n");
+  res.json({ message: "Audit results saved successfully", contractId });
 });
 
 router.get("/:contractId", requireAuth, async (req, res) => {
