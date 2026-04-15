@@ -139,9 +139,35 @@ User → Create Contract → StreamPay Payment Link → User Pays
 | `STREAM_API_KEY` | Secret | Stream.io API key (to be set) |
 | `STREAM_API_SECRET` | Secret | Stream.io secret (to be set) |
 
+## Frontend (React Vite — `artifacts/raqeeb-web`)
+
+- **Artifact slug**: `raqeeb-web`, port 18970, previewPath `/`
+- **Language**: Arabic RTL — `dir="rtl"` and `lang="ar"` set on `<html>` via `useEffect` in `App.tsx`
+- **Font**: Cairo (Google Fonts, loaded dynamically)
+- **Routing**: wouter with `<WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>`
+- **Auth**: `ProtectedLayout` wraps each protected route, calls `useGetMe()`, redirects to `/login` on 401
+- **API hooks**: Orval-generated hooks from `@workspace/api-client-react`
+- **PDF Upload**: native `fetch` with `FormData` to `POST /api/contracts/upload` (no generated hook, multipart)
+
+### Pages
+| Route | Component | Purpose |
+|---|---|---|
+| `/login` | `Login.tsx` | Sign in |
+| `/register` | `Register.tsx` | Create account |
+| `/` | `Dashboard.tsx` | Contract history (protected) |
+| `/dashboard` | `Dashboard.tsx` | Contract history (protected) |
+| `/upload` | `Upload.tsx` | PDF upload for AI analysis (protected) |
+| `/contracts/:id` | `DecisionRoom.tsx` | AI audit results + Approve/Consult actions (protected) |
+
+### Decision Room Behavior
+- Polls `useGetContract` + `useGetAuditResult` every 5s while status is "Analyzing"
+- Shows Inspector, Law Finder, Drafter outputs in tabbed layout with risk meter
+- "Approved" → calls `useAuditAction({ action: "Approve" })` → full-screen Arabic success overlay
+- "استشارة" → opens a dialog (placeholder for Stream Chat integration)
+
 ## Design Language
 
-- **Colors**: Deep Navy `#001f3f`, Gold `#D4AF37`, Success Green, Danger Red
-- **Typography**: IBM Plex Arabic
+- **Colors**: Teal/green primary, deep navy background, high-contrast text
+- **Typography**: Cairo (Arabic), professional legal-tech aesthetic
 - **Tone**: Authoritative, Professional, Secure
 - **Direction**: RTL (Arabic-first)
