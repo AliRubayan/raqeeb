@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { UploadCloud, File, Loader2, CreditCard, CheckCircle, Infinity, ShieldCheck, Cpu, FileSearch } from "lucide-react";
+import { UploadCloud, File, Loader2, CreditCard, CheckCircle, ShieldCheck, Cpu, FileSearch } from "lucide-react";
 
 const steps = [
   { icon: FileSearch, label: "المفتش المالي", desc: "يفحص بنود العقد" },
@@ -162,18 +162,6 @@ export function Upload() {
         ))}
       </div>
 
-      {/* ── Subscription banner ── */}
-      {hasSubscription && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center shrink-0">
-            <Infinity className="h-4 w-4 text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-emerald-300">اشتراك فعّال</p>
-            <p className="text-xs text-emerald-400/70 mt-0.5">تحليل عقود غير محدود بدون رسوم إضافية</p>
-          </div>
-        </div>
-      )}
 
       {/* ── Upload form ── */}
       <div className="rq-card rounded-2xl p-6 rq-top-accent">
