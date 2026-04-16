@@ -14,7 +14,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
-          <img src="/rqeeb-logo.jpg" alt="رقيب" className="w-16 h-16 object-contain opacity-70" />
+          <img src="/rqeeb-logo.png" alt="رقيب" className="w-16 h-16 object-contain opacity-70" />
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       </div>
@@ -60,7 +60,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
           {/* ── Start: Logo + Nav ── */}
           <div className="flex items-center gap-1">
             <Link href="/dashboard" className="flex items-center gap-2.5 shrink-0 ml-4">
-              <img src="/rqeeb-logo.jpg" alt="رقيب" className="h-8 w-8 object-contain" />
+              <img src="/rqeeb-logo.png" alt="رقيب" className="h-8 w-8 object-contain" />
               <span className="text-base font-bold text-white tracking-wide hidden sm:block">
                 رقيب
               </span>

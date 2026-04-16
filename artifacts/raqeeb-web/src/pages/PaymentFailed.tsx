@@ -11,7 +11,7 @@ export function PaymentFailed() {
       <div className="w-full max-w-sm text-center space-y-7">
         {/* Logo */}
         <img
-          src="/rqeeb-logo.jpg"
+          src="/rqeeb-logo.png"
           alt="رقيب"
           className="w-12 h-12 object-contain mx-auto opacity-75"
         />
