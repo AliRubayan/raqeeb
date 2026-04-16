@@ -11,6 +11,7 @@ import {
   getAuditResultByContract,
   type N8nAuditPayload,
 } from "../repositories/audit-results";
+import { addAuditLog, getAuditLogsByContract } from "../repositories/audit-logs";
 import { isPaymentCompleted } from "../lib/streampay";
 import { findUserById } from "../repositories/users";
 import { logger } from "../lib/logger";
@@ -115,40 +116,23 @@ router.post("/webhook/n8n", async (req, res) => {
   const rawPayload = req.body as Record<string, unknown>;
   logger.info({ payload: rawPayload }, "n8n webhook received — raw payload");
 
-  // --- Extract all fields n8n sends (accept camelCase + snake_case) ---
-  const contractId =
-    (rawPayload["contractId"] as string | undefined) ??
-    (rawPayload["contract_id"] as string | undefined);
+  // --- Extract all fields n8n sends (trim whitespace from IDs) ---
+  const str = (key: string): string | undefined => {
+    const v = rawPayload[key];
+    return typeof v === "string" ? v.trim() : undefined;
+  };
 
-  const userId =
-    (rawPayload["userId"] as string | undefined) ??
-    (rawPayload["user_id"] as string | undefined);
+  const contractId = str("contractId") ?? str("contract_id");
+  const userId     = str("userId")     ?? str("user_id");
+  const contractText = str("contractText") ?? str("contract_text") ?? "";
+  const contractName = str("contractName") ?? str("contract_name") ?? "عقد";
 
-  const contractText =
-    (rawPayload["contractText"] as string | undefined) ??
-    (rawPayload["contract_text"] as string | undefined) ??
-    "";
+  const inspectorResult = str("inspector") ?? str("inspector_result") ?? "";
+  const lawResult       = str("lawfinder") ?? str("law_finder") ?? str("law_result") ?? "";
+  const drafterResult   = str("drafter")   ?? str("drafter_result") ?? "";
 
-  const contractName =
-    (rawPayload["contractName"] as string | undefined) ??
-    (rawPayload["contract_name"] as string | undefined) ??
-    "عقد";
-
-  const inspectorResult =
-    (rawPayload["inspector"] as string | undefined) ??
-    (rawPayload["inspector_result"] as string | undefined) ??
-    "";
-  const lawResult =
-    (rawPayload["lawfinder"] as string | undefined) ??
-    (rawPayload["law_finder"] as string | undefined) ??
-    (rawPayload["law_result"] as string | undefined) ??
-    "";
-  const drafterResult =
-    (rawPayload["drafter"] as string | undefined) ??
-    (rawPayload["drafter_result"] as string | undefined) ??
-    "";
   const riskScore = Number(rawPayload["risk_score"] ?? 0);
-  const severity = normalizeSeverity(String(rawPayload["severity"] ?? ""));
+  const severity  = normalizeSeverity(String(rawPayload["severity"] ?? ""));
 
   if (!contractId) {
     logger.warn({ rawPayload }, "n8n webhook missing contractId — rejecting");
@@ -156,27 +140,38 @@ router.post("/webhook/n8n", async (req, res) => {
     return;
   }
 
-  // --- Step 1: Ensure contract row exists (INSERT if needed, skip if already there) ---
-  // n8n may use its own UUID — we create the row so the FK constraint is satisfied.
-  // If contract already exists (uploaded via our UI), ON CONFLICT DO NOTHING keeps it intact.
+  logger.info({ contractId, userId, riskScore, severity }, "n8n webhook — resolved fields");
+
+  // --- Step 1: Upsert contract row (INSERT ... ON CONFLICT DO NOTHING) ---
+  // Satisfies FK constraint whether n8n uses our UUID or its own.
   if (userId) {
     await upsertContractFromN8n({ id: contractId, userId, contractText, contractName, status: "Completed" });
   } else {
-    // No userId in payload — contract must already exist from the upload flow.
-    // Silently continue; the FK check will catch a truly unknown ID at INSERT time.
-    logger.warn({ contractId }, "n8n callback missing userId — assuming contract already exists in DB");
+    logger.warn({ contractId }, "n8n callback missing userId — contract must already exist in DB");
   }
 
-  // --- Step 2: INSERT audit result directly ---
+  // --- Step 2: INSERT audit result (pass full raw payload as rawResponse) ---
   await saveAuditResult(contractId, {
     risk_score: riskScore,
     severity,
     inspector_result: inspectorResult,
     law_result: lawResult,
     drafter_result: drafterResult,
+    rawResponse: rawPayload,
   });
 
-  // --- Step 3: Mark contract Completed + set Stream channel ---
+  // --- Step 3: Append audit timeline events ---
+  const violationFound = rawPayload["violation_found"] === true || String(rawPayload["violation_found"]).toLowerCase() === "true";
+  await addAuditLog(contractId, "تحليل العقد اكتمل — Inspector أنهى فحصه");
+  await addAuditLog(contractId, "Law Finder حدّد المراجع القانونية ذات الصلة");
+  await addAuditLog(contractId, "Drafter أعدّ التوصيات والصياغة البديلة");
+  if (violationFound) {
+    await addAuditLog(contractId, `⚠️ تم رصد مخاطر — درجة الخطورة: ${severity} — درجة المخاطر: ${riskScore}`);
+  } else {
+    await addAuditLog(contractId, "✅ لم تُرصد انتهاكات — العقد يبدو متوافقاً");
+  }
+
+  // --- Step 4: Mark contract Completed + set Stream channel ---
   await updateContractStatus(contractId, "Completed");
   await updateContractStreamChannel(contractId, `audit-${contractId}`);
 
@@ -280,6 +275,21 @@ router.post("/:contractId/action", requireAuth, async (req, res) => {
     newStatus: newStatus!,
     message: message!,
   });
+});
+
+// Live Timeline feed — returns chronological audit log events for a contract
+router.get("/:contractId/logs", requireAuth, async (req, res) => {
+  const contract = await findContractById(req.params.contractId as string);
+  if (!contract) {
+    res.status(404).json({ error: "Contract not found" });
+    return;
+  }
+  if (contract.userId !== req.session.userId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  const logs = await getAuditLogsByContract(contract.id);
+  res.json(logs);
 });
 
 export default router;
