@@ -370,7 +370,7 @@ function LawFinderPanel({ raw }: { raw?: string }) {
         )}
       </div>
       <Field label="اسم النظام / القانون" value={d["LAW_NAME"]} highlight="teal" />
-      <Field label="النص القانوني" value={d["LEGAL_TEXT"]} mono />
+      <Field label="النص القانوني" value={d["LEGAL_TEXT"]} />
       <Field label="العقوبة / الجزاء" value={d["PENALTY"]} highlight="red" />
       <Field label="الأثر التجاري" value={d["BUSINESS_IMPACT"]} highlight="orange" />
       <Field label="احتمالية التطبيق" value={d["ENFORCEMENT_LIKELIHOOD"]} />
