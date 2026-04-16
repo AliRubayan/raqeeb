@@ -4,16 +4,16 @@ import { useRegisterUser } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff, ShieldCheck, Cpu, FileSearch } from "lucide-react";
 
 export function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  
+
   const registerMutation = useRegisterUser();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -22,10 +22,7 @@ export function Register() {
       { data: { email, password } },
       {
         onSuccess: () => {
-          toast({
-            title: "تم إنشاء الحساب بنجاح",
-            description: "جاري تحويلك إلى لوحة القيادة...",
-          });
+          toast({ title: "مرحباً بك في رقيب", description: "تم إنشاء حسابك بنجاح" });
           setLocation("/dashboard");
         },
         onError: (error) => {
@@ -39,55 +36,120 @@ export function Register() {
     );
   };
 
+  const features = [
+    { icon: FileSearch, text: "تحليل فوري لبنود العقد" },
+    { icon: ShieldCheck, text: "كشف المخاطر القانونية" },
+    { icon: Cpu, text: "توصيات صياغة بديلة" },
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md shadow-lg border-primary/10">
-        <CardHeader className="space-y-2 text-center pb-6">
-          <div className="mx-auto bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mb-2">
-            <span className="text-2xl font-bold text-primary">ر</span>
+    <div className="min-h-screen flex bg-background">
+      {/* Left branding panel */}
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-[#060912] border-l border-border/40 p-12">
+        <div className="flex items-center gap-3">
+          <img src="/rqeeb-logo.png" alt="رقيب" className="h-10 w-10 object-contain" />
+          <span className="text-xl font-bold text-white tracking-wide">رقيب</span>
+        </div>
+
+        <div className="space-y-8">
+          <div className="w-12 h-0.5 bg-primary" />
+          <h1 className="text-4xl font-black text-white leading-snug">
+            انضم إلى رقيب<br />
+            <span className="text-primary">Always Watching Out For You</span>
+          </h1>
+
+          <div className="space-y-4">
+            {features.map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <Icon className="h-4 w-4 text-primary" />
+                </div>
+                <span className="text-[#94A3B8] text-sm">{text}</span>
+              </div>
+            ))}
           </div>
-          <CardTitle className="text-2xl font-bold text-foreground">إنشاء حساب جديد</CardTitle>
-          <CardDescription className="text-muted-foreground">انضم إلى رقيب لتحليل العقود بدقة وسرعة</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">البريد الإلكتروني</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required 
+        </div>
+
+        <p className="text-xs text-[#94A3B8]/50">© 2025 Rqeeb. Always watching out for you.</p>
+      </div>
+
+      {/* Right form panel */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <div className="flex items-center gap-2 mb-10 lg:hidden">
+          <img src="/rqeeb-logo.png" alt="رقيب" className="h-10 w-10 object-contain" />
+          <span className="text-xl font-bold text-white">رقيب</span>
+        </div>
+
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-white">إنشاء حساب جديد</h2>
+            <p className="text-[#94A3B8] mt-1.5 text-sm">ابدأ رحلتك في تحليل العقود بذكاء</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-sm text-[#94A3B8]">البريد الإلكتروني</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
                 dir="ltr"
-                className="text-left"
+                placeholder="you@company.com"
+                className="bg-[#111827] border-[#1E2D45] text-white placeholder:text-[#94A3B8]/50 focus:border-primary focus:ring-primary/20 h-11"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">كلمة المرور (8 أحرف على الأقل)</Label>
-              <Input 
-                id="password" 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required 
-                minLength={8}
-                dir="ltr"
-                className="text-left"
-              />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm text-[#94A3B8]">
+                كلمة المرور
+                <span className="text-[#94A3B8]/60 text-xs mr-2">(8 أحرف على الأقل)</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPass ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  dir="ltr"
+                  placeholder="••••••••"
+                  className="bg-[#111827] border-[#1E2D45] text-white placeholder:text-[#94A3B8]/50 focus:border-primary focus:ring-primary/20 h-11 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-white transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
-            <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
-              {registerMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "إنشاء حساب"}
+
+            <Button
+              type="submit"
+              className="w-full h-11 bg-primary hover:bg-primary/90 text-white font-semibold mt-2 shadow-lg shadow-primary/20"
+              disabled={registerMutation.isPending}
+            >
+              {registerMutation.isPending ? (
+                <><Loader2 className="ml-2 h-4 w-4 animate-spin" />جاري الإنشاء...</>
+              ) : (
+                "إنشاء الحساب"
+              )}
             </Button>
           </form>
+
           <div className="mt-6 text-center text-sm">
-            <span className="text-muted-foreground">لديك حساب بالفعل؟ </span>
-            <Link href="/login" className="text-primary font-medium hover:underline">
+            <span className="text-[#94A3B8]">لديك حساب بالفعل؟ </span>
+            <Link href="/login" className="text-primary font-semibold hover:underline">
               تسجيل الدخول
             </Link>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }
