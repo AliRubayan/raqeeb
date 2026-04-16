@@ -19,7 +19,21 @@ import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { parseN8nOutput } from "@/lib/parseN8nOutput";
 
-// ── Field component ─────────────────────────────────────────────────────────
+// ── Sanitize display text (replace em-dashes with commas) ──────────────────
+
+function sanitize(text: string): string {
+  return text.replace(/\s*—\s*/g, "، ").replace(/\s*-{2,}\s*/g, "، ");
+}
+
+// ── Field component (right-border accent card) ──────────────────────────────
+
+const ACCENT = {
+  red:    { bar: "bg-red-500",    bg: "bg-red-500/6",    label: "text-red-400",     icon: "🔴" },
+  green:  { bar: "bg-emerald-500",bg: "bg-emerald-500/6",label: "text-emerald-400", icon: "🟢" },
+  orange: { bar: "bg-amber-500",  bg: "bg-amber-500/6",  label: "text-amber-400",   icon: "🟡" },
+  teal:   { bar: "bg-primary",    bg: "bg-primary/6",    label: "text-primary",     icon: "🔵" },
+  none:   { bar: "bg-[#1E2D45]",  bg: "bg-white/3",      label: "text-[#64748B]",   icon: "" },
+};
 
 function Field({
   label, value, mono = false,
@@ -31,29 +45,21 @@ function Field({
   highlight?: "red" | "green" | "orange" | "teal";
 }) {
   if (!value || value.trim() === "" || value.toLowerCase() === "n/a" || value.toLowerCase() === "not found") return null;
-
-  const styles: Record<string, string> = {
-    red:    "bg-red-500/8 border-red-500/20",
-    green:  "bg-emerald-500/8 border-emerald-500/20",
-    orange: "bg-amber-500/8 border-amber-500/20",
-    teal:   "bg-primary/8 border-primary/20",
-  };
-
-  const labelColors: Record<string, string> = {
-    red:    "text-red-400",
-    green:  "text-emerald-400",
-    orange: "text-amber-400",
-    teal:   "text-primary",
-  };
+  const accent = ACCENT[highlight ?? "none"];
+  const clean = sanitize(value);
 
   return (
-    <div className={`rounded-xl border p-4 space-y-1.5 ${highlight ? styles[highlight] : "bg-white/3 border-[#1E2D45]"}`}>
-      <p className={`text-xs font-bold uppercase tracking-widest ${highlight ? labelColors[highlight] : "text-[#94A3B8]"}`}>
-        {label}
-      </p>
-      <p className={`text-sm leading-relaxed whitespace-pre-wrap text-white/90 ${mono ? "font-mono text-xs" : ""}`}>
-        {value}
-      </p>
+    <div className={`relative flex rounded-xl overflow-hidden ${accent.bg}`}>
+      {/* Right accent bar (RTL) */}
+      <div className={`w-1 shrink-0 ${accent.bar} opacity-70`} />
+      <div className="flex-1 px-4 py-3.5 space-y-1.5 min-w-0">
+        <p className={`text-[10px] font-extrabold uppercase tracking-[0.15em] ${accent.label}`}>
+          {label}
+        </p>
+        <p className={`text-sm leading-7 whitespace-pre-wrap text-white/90 ${mono ? "font-mono text-xs" : ""}`}>
+          {clean}
+        </p>
+      </div>
     </div>
   );
 }
@@ -70,29 +76,41 @@ function InspectorPanel({ raw }: { raw?: string }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className={`flex items-center gap-3 rounded-xl p-4 border ${
-        violated
-          ? "bg-red-500/8 border-red-500/20"
-          : "bg-emerald-500/8 border-emerald-500/20"
+    <div className="space-y-2.5">
+      {/* ── Verdict banner ── */}
+      <div className={`relative flex items-stretch rounded-xl overflow-hidden ${
+        violated ? "bg-red-500/8" : "bg-emerald-500/8"
       }`}>
-        {violated
-          ? <XCircle className="h-6 w-6 text-red-400 shrink-0" />
-          : <CheckCircle className="h-6 w-6 text-emerald-400 shrink-0" />
-        }
-        <div>
-          <p className={`font-bold text-base ${violated ? "text-red-300" : "text-emerald-300"}`}>
-            {violated ? "⚠️ تم رصد انتهاك" : "✅ لا انتهاكات مرصودة"}
-          </p>
-          {d["SEVERITY"] && (
-            <p className="text-xs text-[#94A3B8] mt-0.5">
-              درجة الخطورة: <span className="font-semibold text-white">{d["SEVERITY"]}</span>
+        {/* Thick left accent */}
+        <div className={`w-1.5 shrink-0 ${violated ? "bg-red-500" : "bg-emerald-500"}`} />
+        <div className="flex-1 flex items-center gap-4 px-5 py-4">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            violated ? "bg-red-500/15" : "bg-emerald-500/15"
+          }`}>
+            {violated
+              ? <XCircle className="h-5 w-5 text-red-400" />
+              : <CheckCircle className="h-5 w-5 text-emerald-400" />
+            }
+          </div>
+          <div className="flex-1">
+            <p className={`font-bold text-sm ${violated ? "text-red-300" : "text-emerald-300"}`}>
+              {violated ? "تم رصد انتهاك في هذا العقد" : "لم تُرصد انتهاكات في هذا العقد"}
             </p>
-          )}
+            {d["SEVERITY"] && (
+              <p className="text-xs text-[#94A3B8] mt-1">
+                درجة الخطورة
+                <span className={`font-bold mr-1.5 ${violated ? "text-red-300" : "text-emerald-300"}`}>
+                  {sanitize(d["SEVERITY"])}
+                </span>
+              </p>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* ── Detail fields ── */}
       <Field label="البند المخالف" value={d["CLAUSE"]} highlight={violated ? "red" : undefined} />
-      <Field label="المشكلة / الانتهاك" value={d["ISSUE"]} highlight={violated ? "orange" : undefined} />
+      <Field label="المشكلة والانتهاك" value={d["ISSUE"]} highlight={violated ? "orange" : undefined} />
       <Field label="المرجع القانوني" value={d["LAW"]} highlight="teal" />
       <Field label="تقدير المخاطر" value={d["RISK"]} />
     </div>
@@ -147,7 +165,7 @@ function LawFinderPanel({ raw }: { raw?: string }) {
 function DrafterPanel({ raw }: { raw?: string }) {
   const d = parseN8nOutput(raw ?? "");
   if (!raw || Object.keys(d).length === 0) {
-    return <p className="text-[#94A3B8] text-sm">لا توجد مخرجات متوفرة من المصيغ.</p>;
+    return <p className="text-[#94A3B8] text-sm">لا توجد مخرجات متوفرة من المحامي.</p>;
   }
 
   return (
@@ -156,25 +174,26 @@ function DrafterPanel({ raw }: { raw?: string }) {
       <Field label="ملخص المخالفة" value={d["VIOLATION_SUMMARY"]} highlight="orange" />
 
       {(d["REPLACEMENT_CLAUSE_AR"] || d["REPLACEMENT_CLAUSE_EN"]) && (
-        <div className="rounded-xl border border-emerald-500/20 overflow-hidden">
-          <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-4 py-2.5 flex items-center gap-2">
-            <PenTool className="h-3.5 w-3.5 text-emerald-400" />
-            <span className="text-xs font-bold uppercase tracking-widest text-emerald-400">
+        <div className="relative flex rounded-xl overflow-hidden bg-emerald-500/6">
+          <div className="w-1.5 shrink-0 bg-emerald-500 opacity-70" />
+          <div className="flex-1 px-4 py-3.5 space-y-3 min-w-0">
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400 flex items-center gap-2">
+              <PenTool className="h-3 w-3" />
               البند البديل المقترح
-            </span>
+            </p>
+            {d["REPLACEMENT_CLAUSE_AR"] && (
+              <div>
+                <p className="text-[10px] font-bold text-[#94A3B8] mb-1.5 uppercase tracking-wider">عربي</p>
+                <p className="text-sm leading-7 whitespace-pre-wrap text-white/90">{sanitize(d["REPLACEMENT_CLAUSE_AR"])}</p>
+              </div>
+            )}
+            {d["REPLACEMENT_CLAUSE_EN"] && (
+              <div>
+                <p className="text-[10px] font-bold text-[#94A3B8] mb-1.5 uppercase tracking-wider">English</p>
+                <p className="text-sm leading-7 whitespace-pre-wrap text-white/90" dir="ltr">{sanitize(d["REPLACEMENT_CLAUSE_EN"])}</p>
+              </div>
+            )}
           </div>
-          {d["REPLACEMENT_CLAUSE_AR"] && (
-            <div className="p-4 border-b border-emerald-500/10">
-              <p className="text-xs font-bold text-[#94A3B8] mb-2 uppercase tracking-wider">عربي</p>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-white/90">{d["REPLACEMENT_CLAUSE_AR"]}</p>
-            </div>
-          )}
-          {d["REPLACEMENT_CLAUSE_EN"] && (
-            <div className="p-4">
-              <p className="text-xs font-bold text-[#94A3B8] mb-2 uppercase tracking-wider">English</p>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-white/90" dir="ltr">{d["REPLACEMENT_CLAUSE_EN"]}</p>
-            </div>
-          )}
         </div>
       )}
 
@@ -516,7 +535,7 @@ export function DecisionRoom() {
                     {[
                       { value: "inspector", icon: ShieldAlert, label: "المفتش" },
                       { value: "lawfinder", icon: Scale, label: "الباحث" },
-                      { value: "drafter", icon: PenTool, label: "المصيغ" },
+                      { value: "drafter", icon: PenTool, label: "المحامي" },
                     ].map(({ value, icon: Icon, label }) => (
                       <TabsTrigger
                         key={value}
