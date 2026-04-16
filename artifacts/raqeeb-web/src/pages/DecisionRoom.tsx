@@ -445,6 +445,25 @@ export function DecisionRoom() {
   });
 
   const auditAction = useAuditAction();
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancel = async () => {
+    setIsCancelling(true);
+    try {
+      await fetch(`/api/contracts/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      setLocation("/dashboard");
+    } catch {
+      toast({
+        variant: "destructive",
+        title: "خطأ",
+        description: "حدث خطأ أثناء إلغاء العقد",
+      });
+      setIsCancelling(false);
+    }
+  };
 
   const handleApprove = () => {
     auditAction.mutate(
@@ -636,18 +655,33 @@ export function DecisionRoom() {
                 استشارة
               </Button>
               {contract.status === "Ready" && (
-                <Button
-                  className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-lg shadow-primary/20"
-                  onClick={handleApprove}
-                  disabled={auditAction.isPending}
-                >
-                  {auditAction.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4" />
-                  )}
-                  موافقة على العقد
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    className="border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-500/50 gap-2"
+                    onClick={handleCancel}
+                    disabled={isCancelling || auditAction.isPending}
+                  >
+                    {isCancelling ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    إلغاء
+                  </Button>
+                  <Button
+                    className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-lg shadow-primary/20"
+                    onClick={handleApprove}
+                    disabled={auditAction.isPending || isCancelling}
+                  >
+                    {auditAction.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4" />
+                    )}
+                    موافقة على العقد
+                  </Button>
+                </>
               )}
             </div>
           )}
