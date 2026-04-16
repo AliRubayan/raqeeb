@@ -49,10 +49,10 @@ function Field({
   const clean = sanitize(value);
 
   return (
-    <div className={`relative flex rounded-xl overflow-hidden ${accent.bg}`}>
-      {/* Right accent bar (RTL) */}
+    <div className={`relative flex rounded-xl overflow-hidden ${accent.bg}`} dir="rtl">
+      {/* Right accent bar */}
       <div className={`w-1 shrink-0 ${accent.bar} opacity-70`} />
-      <div className="flex-1 px-4 py-3.5 space-y-1.5 min-w-0">
+      <div className="flex-1 px-4 py-3.5 space-y-1.5 min-w-0 text-right">
         <p className={`text-[10px] font-extrabold uppercase tracking-[0.15em] ${accent.label}`}>
           {label}
         </p>
@@ -475,7 +475,7 @@ export function DecisionRoom() {
             <div className="rq-card rounded-2xl overflow-hidden h-full flex flex-col">
               <Tabs defaultValue="inspector" className="w-full flex flex-col flex-1">
                 {/* Tab bar */}
-                <div className="border-b border-[#1E2D45] px-4 pt-3 bg-[#0A0E1A]/50">
+                <div className="border-b border-[#1E2D45] px-4 pt-3 bg-[#0A0E1A]/50" dir="rtl">
                   <TabsList className="w-full grid grid-cols-3 bg-transparent gap-1 h-auto p-0">
                     {[
                       { value: "inspector", icon: ShieldAlert, label: "المفتش" },
@@ -572,7 +572,7 @@ export function DecisionRoom() {
 
       {/* ── Legal Chat Sheet ─────────────────────────────────────────────── */}
       <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <SheetContent side="right" className="w-full sm:w-[500px] flex flex-col p-0 bg-[#0A0E1A] border-[#1E2D45]" dir="rtl">
+        <SheetContent side="right" className="w-full sm:w-[440px] flex flex-col p-0 bg-[#0A0E1A] border-[#1E2D45]" dir="rtl">
           <SheetHeader className="px-5 py-4 border-b border-[#1E2D45] bg-[#111827]">
             <SheetTitle className="flex items-center gap-2.5 text-sm text-white">
               <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
