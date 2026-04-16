@@ -48,46 +48,70 @@ router.post("/", requireAuth, async (req, res) => {
       "Forwarding chat message to n8n with audit context",
     );
 
+    const n8nPayload = {
+      // Contract identity
+      contract_id: contractId,
+      contractId,
+      contract_name: contract.contractName,
+      contractName: contract.contractName,
+      contract_text: contract.contractText,
+      contractText: contract.contractText,
+
+      // Audit findings — give the AI agent full context for follow-up questions
+      inspector: auditResult?.inspectorOutput ?? null,
+      inspector_output: auditResult?.inspectorOutput ?? null,
+      lawfinder: auditResult?.lawFinderOutput ?? null,
+      law_finder_output: auditResult?.lawFinderOutput ?? null,
+      drafter: auditResult?.drafterOutput ?? null,
+      drafter_output: auditResult?.drafterOutput ?? null,
+      risk_score: auditResult?.riskScore ?? null,
+      severity: auditResult?.severity ?? null,
+
+      // User question
+      message,
+      userId: req.session.userId,
+    };
+
+    console.log("═══════════════════════════════════════════════");
+    console.log("N8N CHAT → SENDING PAYLOAD:");
+    console.log(JSON.stringify(n8nPayload, null, 2));
+    console.log("═══════════════════════════════════════════════");
+
     const n8nRes = await fetch(N8N_CHAT_WEBHOOK, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        // Contract identity
-        contract_id: contractId,
-        contractId,
-        contract_name: contract.contractName,
-        contractName: contract.contractName,
-        contract_text: contract.contractText,
-        contractText: contract.contractText,
-
-        // Audit findings — give the AI agent full context for follow-up questions
-        inspector: auditResult?.inspectorOutput ?? null,
-        inspector_output: auditResult?.inspectorOutput ?? null,
-        lawfinder: auditResult?.lawFinderOutput ?? null,
-        law_finder_output: auditResult?.lawFinderOutput ?? null,
-        drafter: auditResult?.drafterOutput ?? null,
-        drafter_output: auditResult?.drafterOutput ?? null,
-        risk_score: auditResult?.riskScore ?? null,
-        severity: auditResult?.severity ?? null,
-
-        // User question
-        message,
-        userId: req.session.userId,
-      }),
+      body: JSON.stringify(n8nPayload),
       signal: controller.signal,
     });
 
+    // Read raw text FIRST so we can log it before any JSON parsing
+    const rawText = await n8nRes.text();
+
+    console.log("═══════════════════════════════════════════════");
+    console.log(`N8N CHAT ← RAW RESPONSE (status ${n8nRes.status}):`);
+    console.log(rawText);
+    console.log("═══════════════════════════════════════════════");
+
     if (!n8nRes.ok) {
-      throw new Error(`n8n returned ${n8nRes.status}`);
+      throw new Error(`n8n returned ${n8nRes.status}: ${rawText.slice(0, 200)}`);
     }
 
-    const raw = await n8nRes.json() as unknown;
-    logger.info({ contractId, raw }, "Raw n8n chat response");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(rawText);
+    } catch {
+      logger.error({ contractId, rawText }, "n8n chat returned non-JSON response");
+      res.status(502).json({ error: "تعذّر قراءة رد خدمة الاستشارة" });
+      return;
+    }
+
+    logger.info({ contractId, raw }, "Raw n8n chat response (parsed)");
 
     // n8n sometimes wraps response in an array — unwrap it
     const data = (Array.isArray(raw) ? raw[0] : raw) as Record<string, unknown>;
 
     // Pick first non-empty, non-template-literal string value
+    // Priority: reply > message > output > text > answer > response > any string
     const isValid = (v: unknown): v is string =>
       typeof v === "string" && v.trim().length > 0 && !v.includes("{{");
 
@@ -100,6 +124,8 @@ router.post("/", requireAuth, async (req, res) => {
       (isValid(data["response"]) ? data["response"] : null) ??
       Object.values(data).find(isValid) ??
       null;
+
+    console.log("N8N CHAT — extracted reply key:", JSON.stringify(reply));
 
     // All values were unevaluated n8n template expressions — workflow misconfiguration
     if (!reply) {
@@ -114,7 +140,7 @@ router.post("/", requireAuth, async (req, res) => {
       return;
     }
 
-    logger.info({ contractId, reply }, "Chat reply extracted");
+    logger.info({ contractId, reply }, "Chat reply extracted — sending to client");
     res.json({ reply });
   } catch (err: any) {
     if (err.name === "AbortError") {
