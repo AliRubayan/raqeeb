@@ -13,9 +13,134 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, AlertTriangle, ShieldAlert, Scale, PenTool, CheckCircle, MessageSquare, Send, Bot, User } from "lucide-react";
+import { Loader2, AlertTriangle, ShieldAlert, Scale, PenTool, CheckCircle, MessageSquare, Send, Bot, User, XCircle, Info } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { parseN8nOutput } from "@/lib/parseN8nOutput";
+
+// ── Structured panel helpers ────────────────────────────────────────────────
+
+function Field({ label, value, mono = false, highlight }: {
+  label: string;
+  value?: string;
+  mono?: boolean;
+  highlight?: "red" | "green" | "orange" | "blue";
+}) {
+  if (!value || value.trim() === "" || value.toLowerCase() === "n/a" || value.toLowerCase() === "not found") return null;
+  const bg: Record<string, string> = {
+    red: "bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800",
+    green: "bg-green-50 border-green-200 dark:bg-green-950/30 dark:border-green-800",
+    orange: "bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-800",
+    blue: "bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800",
+  };
+  return (
+    <div className={`rounded-lg border p-3 space-y-1 ${highlight ? bg[highlight] : "bg-muted/30 border-border"}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className={`text-sm leading-relaxed whitespace-pre-wrap ${mono ? "font-mono text-xs" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function InspectorPanel({ raw }: { raw?: string }) {
+  const d = parseN8nOutput(raw ?? "");
+  const violated = d["VIOLATION_FOUND"]?.toLowerCase().includes("yes");
+
+  if (!raw || Object.keys(d).length === 0) {
+    return <p className="text-muted-foreground text-sm">لا توجد مخرجات متوفرة من المفتش.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Violation banner */}
+      <div className={`flex items-center gap-3 rounded-xl p-4 ${violated ? "bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-800" : "bg-green-50 border border-green-200 dark:bg-green-950/30 dark:border-green-800"}`}>
+        {violated ? <XCircle className="h-6 w-6 text-red-600 shrink-0" /> : <CheckCircle className="h-6 w-6 text-green-600 shrink-0" />}
+        <div>
+          <p className={`font-bold text-base ${violated ? "text-red-700 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+            {violated ? "⚠️ تم رصد انتهاك" : "✅ لا انتهاكات مرصودة"}
+          </p>
+          {d["SEVERITY"] && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              درجة الخطورة: <span className="font-semibold">{d["SEVERITY"]}</span>
+            </p>
+          )}
+        </div>
+      </div>
+
+      <Field label="البند المخالف" value={d["CLAUSE"]} highlight={violated ? "red" : undefined} />
+      <Field label="المشكلة / الانتهاك" value={d["ISSUE"]} highlight={violated ? "orange" : undefined} />
+      <Field label="المرجع القانوني" value={d["LAW"]} highlight="blue" />
+      <Field label="تقدير المخاطر" value={d["RISK"]} />
+    </div>
+  );
+}
+
+function LawFinderPanel({ raw }: { raw?: string }) {
+  const d = parseN8nOutput(raw ?? "");
+  if (!raw || Object.keys(d).length === 0) {
+    return <p className="text-muted-foreground text-sm">لا توجد مخرجات متوفرة من الباحث القانوني.</p>;
+  }
+
+  const fixable = d["FIXABLE"]?.toLowerCase().includes("yes");
+  const confirmed = d["CONFIRMATION"]?.toLowerCase().includes("confirmed");
+
+  return (
+    <div className="space-y-3">
+      {/* Header row */}
+      <div className="flex flex-wrap gap-2 mb-1">
+        {d["LAW_CODE"] && <Badge variant="outline" className="font-mono text-xs">{d["LAW_CODE"]}</Badge>}
+        {d["AUTHORITY"] && <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs">{d["AUTHORITY"]}</Badge>}
+        {fixable && <Badge className="bg-green-600 hover:bg-green-700 text-white text-xs">قابل للإصلاح</Badge>}
+        {confirmed && <Badge className="bg-orange-600 hover:bg-orange-700 text-white text-xs">مؤكد</Badge>}
+      </div>
+
+      <Field label="اسم النظام / القانون" value={d["LAW_NAME"]} highlight="blue" />
+      <Field label="النص القانوني" value={d["LEGAL_TEXT"]} mono />
+      <Field label="العقوبة / الجزاء" value={d["PENALTY"]} highlight="red" />
+      <Field label="الأثر التجاري" value={d["BUSINESS_IMPACT"]} highlight="orange" />
+      <Field label="احتمالية التطبيق" value={d["ENFORCEMENT_LIKELIHOOD"]} />
+    </div>
+  );
+}
+
+function DrafterPanel({ raw }: { raw?: string }) {
+  const d = parseN8nOutput(raw ?? "");
+  if (!raw || Object.keys(d).length === 0) {
+    return <p className="text-muted-foreground text-sm">لا توجد مخرجات متوفرة من المصيغ.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <Field label="البند الأصلي" value={d["ORIGINAL_CLAUSE"]} highlight="red" />
+      <Field label="ملخص المخالفة" value={d["VIOLATION_SUMMARY"]} highlight="orange" />
+
+      {/* Replacement side-by-side */}
+      {(d["REPLACEMENT_CLAUSE_AR"] || d["REPLACEMENT_CLAUSE_EN"]) && (
+        <div className="rounded-xl border border-green-200 dark:border-green-800 overflow-hidden">
+          <div className="bg-green-600 text-white px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+            📝 البند البديل المقترح
+          </div>
+          {d["REPLACEMENT_CLAUSE_AR"] && (
+            <div className="p-3 border-b border-green-100 dark:border-green-900">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">عربي</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{d["REPLACEMENT_CLAUSE_AR"]}</p>
+            </div>
+          )}
+          {d["REPLACEMENT_CLAUSE_EN"] && (
+            <div className="p-3">
+              <p className="text-xs font-semibold text-muted-foreground mb-1">English</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap" dir="ltr">{d["REPLACEMENT_CLAUSE_EN"]}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <Field label="المرجع القانوني" value={d["LAW_REFERENCE"]} highlight="blue" />
+      <Field label="ملاحظات الامتثال" value={d["COMPLIANCE_NOTES"]} highlight="green" />
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -302,40 +427,23 @@ export function DecisionRoom() {
                     </TabsTrigger>
                   </TabsList>
                 </div>
-                <CardContent className="p-6 flex-1 bg-background">
-                  <TabsContent value="inspector" className="m-0 h-full">
-                    <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none">
-                      <h3 className="text-xl font-bold flex items-center text-primary mb-4">
-                        <ShieldAlert className="mr-2 h-5 w-5" />
-                        تحليل المخاطر الشامل
-                      </h3>
-                      <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">
-                        {auditResult.inspectorOutput || "لا توجد مخرجات متوفرة من المفتش."}
-                      </div>
-                    </div>
+                <CardContent className="p-6 flex-1 bg-background overflow-y-auto max-h-[600px]">
+
+                  {/* ── Inspector Tab ── */}
+                  <TabsContent value="inspector" className="m-0">
+                    <InspectorPanel raw={auditResult.inspectorOutput} />
                   </TabsContent>
-                  <TabsContent value="lawfinder" className="m-0 h-full">
-                    <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none">
-                      <h3 className="text-xl font-bold flex items-center text-primary mb-4">
-                        <Scale className="mr-2 h-5 w-5" />
-                        المراجع والسوابق القانونية
-                      </h3>
-                      <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">
-                        {auditResult.lawFinderOutput || "لا توجد مخرجات متوفرة من الباحث القانوني."}
-                      </div>
-                    </div>
+
+                  {/* ── Law Finder Tab ── */}
+                  <TabsContent value="lawfinder" className="m-0">
+                    <LawFinderPanel raw={auditResult.lawFinderOutput} />
                   </TabsContent>
-                  <TabsContent value="drafter" className="m-0 h-full">
-                    <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none">
-                      <h3 className="text-xl font-bold flex items-center text-primary mb-4">
-                        <PenTool className="mr-2 h-5 w-5" />
-                        اقتراحات إعادة الصياغة
-                      </h3>
-                      <div className="whitespace-pre-wrap leading-relaxed text-foreground/90">
-                        {auditResult.drafterOutput || "لا توجد مخرجات متوفرة من المصيغ."}
-                      </div>
-                    </div>
+
+                  {/* ── Drafter Tab ── */}
+                  <TabsContent value="drafter" className="m-0">
+                    <DrafterPanel raw={auditResult.drafterOutput} />
                   </TabsContent>
+
                 </CardContent>
               </Tabs>
             </Card>
