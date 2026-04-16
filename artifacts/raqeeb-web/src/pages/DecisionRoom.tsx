@@ -43,7 +43,8 @@ function Field({ label, value, mono = false, highlight }: {
 
 function InspectorPanel({ raw }: { raw?: string }) {
   const d = parseN8nOutput(raw ?? "");
-  const violated = d["VIOLATION_FOUND"]?.toLowerCase().includes("yes");
+  const violationVal = d["VIOLATION_FOUND"] ?? "";
+  const violated = /yes|نعم|true|1/i.test(violationVal);
 
   if (!raw || Object.keys(d).length === 0) {
     return <p className="text-muted-foreground text-sm">لا توجد مخرجات متوفرة من المفتش.</p>;
@@ -194,7 +195,7 @@ export function DecisionRoom() {
 
   const handleApprove = () => {
     auditAction.mutate(
-      { data: { action: "Approve" } },
+      { contractId: id, data: { action: "Approve" } },
       {
         onSuccess: () => {
           setIsSuccessOverlayOpen(true);
@@ -426,10 +427,6 @@ export function DecisionRoom() {
                 <div className="flex justify-between py-2 border-b border-border/50">
                   <span className="text-muted-foreground">تاريخ التحليل</span>
                   <span className="font-medium" dir="ltr">{new Date(auditResult.createdAt).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b border-border/50">
-                  <span className="text-muted-foreground">معرف التدقيق</span>
-                  <span className="font-mono text-xs truncate max-w-[120px]">{auditResult.id}</span>
                 </div>
               </CardContent>
             </Card>
