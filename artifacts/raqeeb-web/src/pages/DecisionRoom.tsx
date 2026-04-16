@@ -70,6 +70,9 @@ function AnalyzingView({ isReady, onComplete }: { isReady: boolean; onComplete: 
   const startRef = useRef(Date.now());
   const completingRef = useRef(false);
   const progressRef = useRef(0);
+  // Keep a stable ref to onComplete so the sprint effect never needs it as a dep
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
 
   // ── Agents appear one at a time ──
   useEffect(() => {
@@ -91,6 +94,8 @@ function AnalyzingView({ isReady, onComplete }: { isReady: boolean; onComplete: 
   }, [isReady]);
 
   // ── Sprint: remaining → 100% over 1 s when n8n done ──
+  // deps: [isReady] only — onComplete is read via ref so re-renders don't
+  // clear the interval (which would lock completingRef=true and stall forever)
   useEffect(() => {
     if (!isReady || completingRef.current) return;
     completingRef.current = true;
@@ -104,11 +109,11 @@ function AnalyzingView({ isReady, onComplete }: { isReady: boolean; onComplete: 
       setProgress(Math.round(pct));
       if (pct >= 100) {
         clearInterval(id);
-        setTimeout(onComplete, 400);
+        setTimeout(() => onCompleteRef.current(), 400);
       }
     }, 20);
     return () => clearInterval(id);
-  }, [isReady, onComplete]);
+  }, [isReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Message rotation ──
   useEffect(() => {
