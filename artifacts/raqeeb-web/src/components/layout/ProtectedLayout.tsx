@@ -1,7 +1,7 @@
 import { useGetMe, useLogoutUser } from "@workspace/api-client-react";
 import { useLocation, Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, LayoutDashboard, FilePlus, BadgeCheck } from "lucide-react";
+import { Loader2, LogOut, LayoutDashboard, FilePlus, BadgeCheck, Sparkles } from "lucide-react";
 import { ReactNode } from "react";
 
 export function ProtectedLayout({ children }: { children: ReactNode }) {
@@ -77,6 +77,19 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
 
           {/* ── End: Email + subscription badge + Logout ── */}
           <div className="flex items-center gap-2">
+            {/* Subscribe CTA — shown only when no active subscription */}
+            {!(user as any).hasActiveSubscription && (
+              <Link href="/upload">
+                <Button
+                  size="sm"
+                  className="h-8 px-3 gap-1.5 bg-primary hover:bg-primary/90 text-white text-xs font-semibold shadow shadow-primary/20"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  اشتراك في الخدمة
+                </Button>
+              </Link>
+            )}
+
             {/* Email + subscription icon */}
             <div className="hidden md:flex items-center gap-1.5">
               {(user as any).hasActiveSubscription && (
