@@ -131,10 +131,57 @@ router.post("/webhook/n8n", async (req, res) => {
   const lawResult       = str("lawfinder") ?? str("law_finder") ?? str("law_result") ?? "";
   const drafterResult   = str("drafter")   ?? str("drafter_result") ?? "";
 
+  // ── Smart risk score derivation ──────────────────────────────────────────
+  // n8n sometimes sends risk_score: "0" + severity: "none" even when the
+  // inspector output clearly shows VIOLATION_FOUND: yes / SEVERITY: high.
+  // We parse the inspector text as ground truth and override when conflicting.
+
+  /** Extract a KEY: value pair from the inspector structured text */
+  const extractInspectorField = (text: string, key: string): string => {
+    const match = text.match(new RegExp(`^${key}\\s*:\\s*(.+)`, "im"));
+    return match?.[1]?.trim() ?? "";
+  };
+
+  const inspectorViolation = extractInspectorField(inspectorResult, "VIOLATION_FOUND");
+  const inspectorSeverityRaw = extractInspectorField(inspectorResult, "SEVERITY");
+
+  // Detect a violation from either n8n's boolean flag OR inspector text
+  const violationDetected =
+    rawPayload["violation_found"] === true ||
+    String(rawPayload["violation_found"]).toLowerCase() === "true" ||
+    /^(yes|نعم|true|1)/i.test(inspectorViolation);
+
+  /** Map a severity string (Arabic or English) to a 0-10 risk score */
+  const severityToScore = (sev: string): number => {
+    const s = sev.toLowerCase();
+    if (/high|عال|عالي|عالية|critical/.test(s)) return 8.5;
+    if (/medium|متوسط|متوسطة|moderate/.test(s)) return 5.5;
+    if (/low|منخفض|منخفضة/.test(s)) return 2.5;
+    return 0;
+  };
+
   // n8n sends risk_score on a 0-100 scale; normalise to 0-10 for storage
   const rawRiskScore = Number(rawPayload["risk_score"] ?? 0);
-  const riskScore = rawRiskScore > 10 ? Math.round((rawRiskScore / 10) * 10) / 10 : rawRiskScore;
-  const severity  = normalizeSeverity(String(rawPayload["severity"] ?? ""));
+  let riskScore = rawRiskScore > 10 ? Math.round((rawRiskScore / 10) * 10) / 10 : rawRiskScore;
+
+  // If n8n's top-level risk_score is 0 but inspector found a violation,
+  // derive the score from the inspector's own SEVERITY field.
+  if (riskScore === 0 && violationDetected) {
+    riskScore = severityToScore(inspectorSeverityRaw) || severityToScore(String(rawPayload["severity"] ?? ""));
+  }
+
+  // Prefer inspector's severity over n8n's top-level when n8n says "none"
+  const rawSeverity = String(rawPayload["severity"] ?? "");
+  const severity = normalizeSeverity(
+    /none|approved|clean/i.test(rawSeverity) && violationDetected
+      ? inspectorSeverityRaw
+      : rawSeverity,
+  );
+
+  logger.info(
+    { inspectorViolation, inspectorSeverityRaw, violationDetected, riskScoreDerived: riskScore },
+    "n8n webhook — smart risk derivation",
+  );
 
   if (!contractId) {
     logger.warn({ rawPayload }, "n8n webhook missing contractId — rejecting");
@@ -163,11 +210,11 @@ router.post("/webhook/n8n", async (req, res) => {
   });
 
   // --- Step 3: Append audit timeline events ---
-  const violationFound = rawPayload["violation_found"] === true || String(rawPayload["violation_found"]).toLowerCase() === "true";
+  // Use violationDetected (which checks both n8n flag AND inspector text)
   await addAuditLog(contractId, "تحليل العقد اكتمل — Inspector أنهى فحصه");
   await addAuditLog(contractId, "Law Finder حدّد المراجع القانونية ذات الصلة");
   await addAuditLog(contractId, "Drafter أعدّ التوصيات والصياغة البديلة");
-  if (violationFound) {
+  if (violationDetected) {
     await addAuditLog(contractId, `⚠️ تم رصد مخاطر — درجة الخطورة: ${severity} — درجة المخاطر: ${riskScore}`);
   } else {
     await addAuditLog(contractId, "✅ لم تُرصد انتهاكات — العقد يبدو متوافقاً");
