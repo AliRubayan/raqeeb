@@ -274,12 +274,12 @@ function InspectorPanel({ raw }: { raw?: string }) {
   return (
     <div className="space-y-2.5">
       {/* ── Verdict banner ── */}
-      <div className={`relative flex items-stretch rounded-xl overflow-hidden ${
+      <div dir="rtl" className={`relative flex items-stretch rounded-xl overflow-hidden ${
         violated ? "bg-red-500/8" : "bg-emerald-500/8"
       }`}>
-        {/* Thick left accent */}
+        {/* Thick right accent (first child = flex-start = right in RTL) */}
         <div className={`w-1.5 shrink-0 ${violated ? "bg-red-500" : "bg-emerald-500"}`} />
-        <div className="flex-1 flex items-center gap-4 px-5 py-4">
+        <div className="flex-1 flex items-center gap-4 px-5 py-4 text-right">
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
             violated ? "bg-red-500/15" : "bg-emerald-500/15"
           }`}>
@@ -295,7 +295,7 @@ function InspectorPanel({ raw }: { raw?: string }) {
             {d["SEVERITY"] && (
               <p className="text-xs text-[#94A3B8] mt-1">
                 درجة الخطورة
-                <span className={`font-bold mr-1.5 ${violated ? "text-red-300" : "text-emerald-300"}`}>
+                <span className={`font-bold ml-1.5 ${violated ? "text-red-300" : "text-emerald-300"}`}>
                   {sanitize(d["SEVERITY"])}
                 </span>
               </p>
