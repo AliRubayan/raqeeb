@@ -35,6 +35,9 @@ router.post("/create-link", requireAuth, async (req, res) => {
     return;
   }
 
+  // The web app is served under /raqeeb-web on the Replit proxy.
+  // RAQEEB_WEB_BASE_PATH lets us override this (e.g. "/" in production).
+  const webBase = (process.env["RAQEEB_WEB_BASE_PATH"] ?? "/raqeeb-web").replace(/\/$/, "");
   const baseUrl = process.env["REPLIT_DEV_DOMAIN"]
     ? `https://${process.env["REPLIT_DEV_DOMAIN"]}`
     : "http://localhost:80";
@@ -44,8 +47,8 @@ router.post("/create-link", requireAuth, async (req, res) => {
     description: `اشتراك دائم للوصول إلى تحليل العقود`,
     items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
     contractId,
-    successRedirectUrl: `${baseUrl}/payment-success?contractId=${contractId}`,
-    failureRedirectUrl: `${baseUrl}/payment-failed?contractId=${contractId}`,
+    successRedirectUrl: `${baseUrl}${webBase}/payment-success?contractId=${contractId}`,
+    failureRedirectUrl: `${baseUrl}${webBase}/payment-failed?contractId=${contractId}`,
   });
 
   await updateContractPaymentLink(contractId, paymentLink.id, paymentLink.url);
