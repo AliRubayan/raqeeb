@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,23 +22,6 @@ export function Upload() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [dragOver, setDragOver] = useState(false);
-  const [paymentPolling, setPaymentPolling] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pendingContractId = useRef<string | null>(null);
-  const queryClient = useQueryClient();
-
-  const stopPaymentPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    setPaymentPolling(false);
-    setPaymentUrl(null);
-    pendingContractId.current = null;
-  }, []);
-
-  useEffect(() => () => stopPaymentPolling(), [stopPaymentPolling]);
 
   useEffect(() => {
     fetch("/api/auth/me", { credentials: "include" })
@@ -149,30 +131,8 @@ export function Upload() {
         }
         const payData = await payRes.json();
 
-        window.open(payData.paymentUrl, "_blank", "noopener,noreferrer");
-        pendingContractId.current = contractId;
-        setPaymentUrl(payData.paymentUrl);
-        setPaymentPolling(true);
-        setIsUploading(false);
-        setUploadStep("idle");
-
-        pollRef.current = setInterval(async () => {
-          try {
-            const vRes = await fetch(`/api/payments/verify/${pendingContractId.current}`, {
-              credentials: "include",
-            });
-            if (!vRes.ok) return;
-            const vData = await vRes.json();
-            if (vData.paid) {
-              stopPaymentPolling();
-              await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-              toast({ title: "تم الدفع بنجاح", description: "جاري الانتقال إلى لوحة القيادة..." });
-              setLocation("/dashboard");
-            }
-          } catch {
-            // transient — keep polling
-          }
-        }, 3000);
+        toast({ title: "جاري التوجيه لبوابة الدفع..." });
+        window.location.href = payData.paymentUrl;
       } catch (error: any) {
         toast({ variant: "destructive", title: "فشل إنشاء رابط الدفع", description: error.message });
         setIsUploading(false);
@@ -294,30 +254,7 @@ export function Upload() {
           )}
 
           {/* Status messages */}
-          {paymentPolling && (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/8 border border-primary/15">
-              <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />
-              <span className="text-sm text-white">بانتظار تأكيد الدفع...</span>
-              {paymentUrl && (
-                <a
-                  href={paymentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline underline-offset-2 mr-auto"
-                >
-                  افتح رابط الدفع
-                </a>
-              )}
-              <button
-                type="button"
-                onClick={stopPaymentPolling}
-                className="text-xs text-[#94A3B8] hover:text-white hover:underline underline-offset-2"
-              >
-                إلغاء
-              </button>
-            </div>
-          )}
-          {uploadStep === "payment" && !paymentPolling && (
+          {uploadStep === "payment" && (
             <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/8 border border-primary/15">
               <CreditCard className="h-4 w-4 text-primary shrink-0" />
               <span className="text-sm text-white">تم رفع الملف · جاري تحضير بوابة الدفع...</span>
