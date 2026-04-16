@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/requireAuth";
 import { findContractById } from "../repositories/contracts";
+import { getAuditResultByContract } from "../repositories/audit-results";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -27,6 +28,9 @@ router.post("/", requireAuth, async (req, res) => {
     return;
   }
 
+  // Fetch audit results so the n8n chat agent has full analysis context
+  const auditResult = await getAuditResultByContract(contractId).catch(() => undefined);
+
   const N8N_CHAT_WEBHOOK = process.env["N8NP2_WEBHOOK_URL"];
 
   if (!N8N_CHAT_WEBHOOK) {
@@ -39,18 +43,34 @@ router.post("/", requireAuth, async (req, res) => {
   const timeout = setTimeout(() => controller.abort(), 30000);
 
   try {
-    logger.info({ contractId, message }, "Forwarding chat message to n8n");
+    logger.info(
+      { contractId, message, hasAuditResult: !!auditResult },
+      "Forwarding chat message to n8n with audit context",
+    );
 
     const n8nRes = await fetch(N8N_CHAT_WEBHOOK, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        // Contract identity
         contract_id: contractId,
         contractId,
         contract_name: contract.contractName,
         contractName: contract.contractName,
         contract_text: contract.contractText,
         contractText: contract.contractText,
+
+        // Audit findings — give the AI agent full context for follow-up questions
+        inspector: auditResult?.inspectorOutput ?? null,
+        inspector_output: auditResult?.inspectorOutput ?? null,
+        lawfinder: auditResult?.lawFinderOutput ?? null,
+        law_finder_output: auditResult?.lawFinderOutput ?? null,
+        drafter: auditResult?.drafterOutput ?? null,
+        drafter_output: auditResult?.drafterOutput ?? null,
+        risk_score: auditResult?.riskScore ?? null,
+        severity: auditResult?.severity ?? null,
+
+        // User question
         message,
         userId: req.session.userId,
       }),
