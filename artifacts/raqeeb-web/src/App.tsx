@@ -54,11 +54,14 @@ function App() {
     document.documentElement.dir = "rtl";
     document.documentElement.lang = "ar";
     
-    // Add Google Font
+    // Add Google Fonts (Cairo for Arabic, Inter for numbers/Latin)
     const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap";
+    link.href = "https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap";
     link.rel = "stylesheet";
     document.head.appendChild(link);
+
+    // Force dark mode class permanently
+    document.documentElement.classList.add("dark");
   }, []);
 
   return (
