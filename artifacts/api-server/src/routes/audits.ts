@@ -195,7 +195,7 @@ router.post("/webhook/n8n", async (req, res) => {
   // --- Step 1: Upsert contract row (INSERT ... ON CONFLICT DO NOTHING) ---
   // Satisfies FK constraint whether n8n uses our UUID or its own.
   if (userId) {
-    await upsertContractFromN8n({ id: contractId, userId, contractText, contractName, status: "Completed" });
+    await upsertContractFromN8n({ id: contractId, userId, contractText, contractName, status: "Ready" as any });
   } else {
     logger.warn({ contractId }, "n8n callback missing userId — contract must already exist in DB");
   }
@@ -221,8 +221,8 @@ router.post("/webhook/n8n", async (req, res) => {
     await addAuditLog(contractId, "✅ لم تُرصد انتهاكات — العقد يبدو متوافقاً");
   }
 
-  // --- Step 4: Mark contract Completed + set Stream channel ---
-  await updateContractStatus(contractId, "Completed");
+  // --- Step 4: Mark contract Ready (analysis done, pending user approval) ---
+  await updateContractStatus(contractId, "Ready" as any);
   await updateContractStreamChannel(contractId, `audit-${contractId}`);
 
   logger.info({ contractId, riskScore }, "Audit results inserted from n8n");
@@ -285,7 +285,7 @@ router.post("/:contractId/action", requireAuth, async (req, res) => {
 
   switch (action) {
     case "Approve":
-      newStatus = "Completed";
+      newStatus = "Completed"; // "Completed" = approved by user
       message = "Contract approved and finalized. A success report has been generated.";
       break;
     case "Reject":

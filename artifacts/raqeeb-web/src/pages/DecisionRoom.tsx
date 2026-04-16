@@ -224,7 +224,7 @@ export function DecisionRoom() {
 
   const { data: auditResult } = useGetAuditResult(id, {
     query: {
-      enabled: !!id && contract?.status === "Completed",
+      enabled: !!id && (contract?.status === "Ready" || contract?.status === "Completed"),
       queryKey: getGetAuditResultQueryKey(id),
     },
   });
@@ -381,6 +381,11 @@ export function DecisionRoom() {
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   مكتمل
                 </span>
+              ) : contract.status === "Ready" ? (
+                <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  بانتظار القرار
+                </span>
               ) : (
                 <span className="text-xs text-[#94A3B8]">{contract.status}</span>
               )}
@@ -394,7 +399,7 @@ export function DecisionRoom() {
             </p>
           </div>
 
-          {!isAnalyzing && contract.status === "Completed" && (
+          {!isAnalyzing && (contract.status === "Ready" || contract.status === "Completed") && (
             <div className="flex items-center gap-3 shrink-0">
               <Button
                 variant="outline"
@@ -404,18 +409,20 @@ export function DecisionRoom() {
                 <MessageSquare className="h-4 w-4" />
                 استشارة
               </Button>
-              <Button
-                className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-lg shadow-primary/20"
-                onClick={handleApprove}
-                disabled={auditAction.isPending}
-              >
-                {auditAction.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle className="h-4 w-4" />
-                )}
-                موافقة على العقد
-              </Button>
+              {contract.status === "Ready" && (
+                <Button
+                  className="bg-primary hover:bg-primary/90 text-white gap-2 shadow-lg shadow-primary/20"
+                  onClick={handleApprove}
+                  disabled={auditAction.isPending}
+                >
+                  {auditAction.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4" />
+                  )}
+                  موافقة على العقد
+                </Button>
+              )}
             </div>
           )}
         </div>

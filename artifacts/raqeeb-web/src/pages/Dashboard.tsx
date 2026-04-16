@@ -63,7 +63,7 @@ export function Dashboard() {
   }
 
   const contracts = data?.contracts || [];
-  const completedContracts = contracts.filter((c) => c.status === "Completed");
+  const completedContracts = contracts.filter((c) => c.status === "Completed" || c.status === "Ready");
   const highRiskCount = completedContracts.filter((c) => c.auditResult?.severity === "High").length;
   const avgRisk =
     completedContracts.length > 0
@@ -80,6 +80,13 @@ export function Dashboard() {
           <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
             <span className="w-1 h-1 rounded-full bg-emerald-400" />
             مكتمل
+          </span>
+        );
+      case "Ready":
+        return (
+          <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            <span className="w-1 h-1 rounded-full bg-amber-400" />
+            بانتظار القرار
           </span>
         );
       case "Analyzing":
