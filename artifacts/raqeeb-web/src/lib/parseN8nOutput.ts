@@ -36,6 +36,9 @@ const ARABIC_KEY_MAP: Record<string, string> = {
 export function parseN8nOutput(raw: string): Record<string, string> {
   if (!raw || !raw.trim()) return {};
 
+  // Normalise Windows/Mac line endings so \r never leaks into values
+  const normalised = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
   const result: Record<string, string> = {};
   let currentKey: string | null = null;
   let currentLines: string[] = [];
@@ -46,7 +49,7 @@ export function parseN8nOutput(raw: string): Record<string, string> {
     }
   };
 
-  for (const line of raw.split("\n")) {
+  for (const line of normalised.split("\n")) {
     // Try uppercase English key: SOME_KEY: value
     const engMatch = line.match(/^([A-Z][A-Z0-9_]+)\s*:\s*(.*)/);
     if (engMatch) {
