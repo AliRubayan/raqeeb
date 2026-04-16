@@ -68,33 +68,40 @@ router.post("/create-subscription-link", requireAuth, async (req, res) => {
     ? `https://${process.env["REPLIT_DEV_DOMAIN"]}`
     : "http://localhost:80";
 
+  // Create the link first to get its ID, then embed the ID in the success URL
+  const tempLink = await createPaymentLink({
+    name: "اشتراك رقيب — الخدمة",
+    description: "اشتراك في خدمة تحليل العقود بالذكاء الاصطناعي",
+    items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
+    contractId: `sub_${req.session.userId}`,
+    successRedirectUrl: `${baseUrl}${webBase}/payment-success?type=subscription&linkId=PLACEHOLDER`,
+    failureRedirectUrl: `${baseUrl}${webBase}/payment-failed`,
+  });
+
+  // Re-create with the real linkId embedded in the success URL so we don't depend on session
   const link = await createPaymentLink({
     name: "اشتراك رقيب — الخدمة",
     description: "اشتراك في خدمة تحليل العقود بالذكاء الاصطناعي",
     items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
     contractId: `sub_${req.session.userId}`,
-    successRedirectUrl: `${baseUrl}${webBase}/payment-success?type=subscription`,
+    successRedirectUrl: `${baseUrl}${webBase}/payment-success?type=subscription&linkId=${encodeURIComponent(tempLink.id)}`,
     failureRedirectUrl: `${baseUrl}${webBase}/payment-failed`,
   });
-
-  // Store the link ID in the session so we can verify it on success
-  (req.session as Record<string, unknown>)["subscriptionLinkId"] = link.id;
 
   res.json({ paymentUrl: link.url });
 });
 
 // Verify a standalone subscription payment and mark user as subscribed
 router.post("/verify-subscription", requireAuth, async (req, res) => {
-  const linkId = (req.session as Record<string, unknown>)["subscriptionLinkId"] as string | undefined;
+  const { linkId } = req.body as { linkId?: string };
   if (!linkId) {
-    res.status(400).json({ error: "No pending subscription payment found" });
+    res.status(400).json({ error: "linkId is required" });
     return;
   }
 
   const paid = await isPaymentCompleted(linkId);
   if (paid) {
     await setActiveSubscription(req.session.userId!, true);
-    delete (req.session as Record<string, unknown>)["subscriptionLinkId"];
   }
 
   res.json({ subscribed: paid });
