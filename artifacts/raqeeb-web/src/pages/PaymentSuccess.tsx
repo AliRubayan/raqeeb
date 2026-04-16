@@ -10,9 +10,50 @@ export function PaymentSuccess() {
   const [stage, setStage] = useState<Stage>("verifying");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const contractId = new URLSearchParams(window.location.search).get("contractId");
+  const params = new URLSearchParams(window.location.search);
+  const contractId = params.get("contractId");
+  const isSubscriptionFlow = params.get("type") === "subscription";
 
   useEffect(() => {
+    // ── Subscription-only flow (no contract) ──
+    if (isSubscriptionFlow) {
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      async function verifySubscription() {
+        try {
+          const res = await fetch("/api/payments/verify-subscription", {
+            method: "POST",
+            credentials: "include",
+          });
+
+          if (!res.ok) throw new Error("فشل التحقق من الدفع");
+          const data = await res.json();
+
+          if (data.subscribed) {
+            setStage("done");
+            setTimeout(() => setLocation("/dashboard"), 1200);
+            return;
+          }
+
+          attempts++;
+          if (attempts >= maxAttempts) {
+            setStage("error");
+            setErrorMsg("تعذّر التحقق من الدفع. يرجى التواصل مع الدعم.");
+            return;
+          }
+          setTimeout(verifySubscription, 2000);
+        } catch (err: unknown) {
+          setStage("error");
+          setErrorMsg(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
+        }
+      }
+
+      verifySubscription();
+      return;
+    }
+
+    // ── Contract-payment flow ──
     if (!contractId) {
       setStage("error");
       setErrorMsg("لم يتم العثور على رقم العقد في الرابط");
@@ -67,7 +108,7 @@ export function PaymentSuccess() {
     }
 
     verifyAndDispatch();
-  }, [contractId, setLocation]);
+  }, [contractId, isSubscriptionFlow, setLocation]);
 
   const stageIndex = { verifying: 0, dispatching: 1, done: 2, error: -1 }[stage];
 
