@@ -13,10 +13,17 @@ export function PaymentSuccess() {
   const params = new URLSearchParams(window.location.search);
   const contractId = params.get("contractId");
   const isSubscriptionFlow = params.get("type") === "subscription";
+  const subscriptionLinkId = params.get("linkId");
 
   useEffect(() => {
     // ── Subscription-only flow (no contract) ──
     if (isSubscriptionFlow) {
+      if (!subscriptionLinkId) {
+        setStage("error");
+        setErrorMsg("رابط الدفع مفقود. يرجى التواصل مع الدعم.");
+        return;
+      }
+
       let attempts = 0;
       const maxAttempts = 10;
 
@@ -24,7 +31,9 @@ export function PaymentSuccess() {
         try {
           const res = await fetch("/api/payments/verify-subscription", {
             method: "POST",
+            headers: { "Content-Type": "application/json" },
             credentials: "include",
+            body: JSON.stringify({ linkId: subscriptionLinkId }),
           });
 
           if (!res.ok) throw new Error("فشل التحقق من الدفع");
@@ -32,7 +41,10 @@ export function PaymentSuccess() {
 
           if (data.subscribed) {
             setStage("done");
-            setTimeout(() => setLocation("/dashboard"), 1200);
+            // Hard redirect so ProtectedLayout re-fetches the updated user state
+            setTimeout(() => {
+              window.location.replace(import.meta.env.BASE_URL + "dashboard");
+            }, 1200);
             return;
           }
 
@@ -156,7 +168,9 @@ export function PaymentSuccess() {
             </div>
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-white">تمّ الدفع بنجاح</h2>
-              <p className="text-sm text-[#94A3B8]">جاري تحويلك إلى غرفة القرار...</p>
+              <p className="text-sm text-[#94A3B8]">
+                {isSubscriptionFlow ? "جاري تحويلك إلى لوحة القيادة..." : "جاري تحويلك إلى غرفة القرار..."}
+              </p>
             </div>
           </>
         ) : (
