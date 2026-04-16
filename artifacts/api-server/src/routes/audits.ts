@@ -95,8 +95,9 @@ router.post("/start", requireAuth, async (req, res) => {
 
 function normalizeSeverity(raw: string): "Low" | "Medium" | "High" {
   const s = (raw ?? "").toLowerCase();
-  if (s === "high") return "High";
-  if (s === "medium" || s === "med") return "Medium";
+  if (/high|عال|عالي|عالية|عالٍ|critical/.test(s)) return "High";
+  if (/medium|med|متوسط|متوسطة|moderate/.test(s)) return "Medium";
+  if (/low|منخفض|منخفضة/.test(s)) return "Low";
   return "Low";
 }
 
