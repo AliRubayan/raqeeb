@@ -146,6 +146,8 @@ interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   loading?: boolean;
+  isError?: boolean;
+  retryable?: boolean;
 }
 
 export function DecisionRoom() {
@@ -164,6 +166,7 @@ export function DecisionRoom() {
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -208,17 +211,14 @@ export function DecisionRoom() {
     );
   };
 
-  const handleSendMessage = async () => {
-    const msg = chatInput.trim();
-    if (!msg || isSending) return;
-
-    setChatInput("");
+  const sendChatMessage = async (msg: string) => {
     setChatMessages((prev) => [
       ...prev,
       { role: "user", text: msg },
       { role: "assistant", text: "", loading: true },
     ]);
     setIsSending(true);
+    setLastFailedMessage(null);
 
     try {
       const res = await fetch("/api/chat", {
@@ -231,7 +231,17 @@ export function DecisionRoom() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "فشل الاتصال بالمساعد");
+        const retryable = !!data?.retryable;
+        const errorText = data?.error || "فشل الاتصال بالمساعد، يرجى المحاولة مرة أخرى.";
+        if (retryable) setLastFailedMessage(msg);
+        setChatMessages((prev) =>
+          prev.map((m, i) =>
+            i === prev.length - 1
+              ? { role: "assistant", text: errorText, loading: false, isError: true, retryable }
+              : m
+          )
+        );
+        return;
       }
 
       setChatMessages((prev) =>
@@ -243,13 +253,29 @@ export function DecisionRoom() {
       setChatMessages((prev) =>
         prev.map((m, i) =>
           i === prev.length - 1
-            ? { role: "assistant", text: err.message || "حدث خطأ، يرجى المحاولة مرة أخرى.", loading: false }
+            ? { role: "assistant", text: "تعذّر الاتصال بالمساعد، يرجى التحقق من الاتصال والمحاولة مجدداً.", loading: false, isError: true, retryable: true }
             : m
         )
       );
+      setLastFailedMessage(msg);
     } finally {
       setIsSending(false);
     }
+  };
+
+  const handleSendMessage = async () => {
+    const msg = chatInput.trim();
+    if (!msg || isSending) return;
+    setChatInput("");
+    await sendChatMessage(msg);
+  };
+
+  const handleRetry = async () => {
+    if (!lastFailedMessage || isSending) return;
+    const msg = lastFailedMessage;
+    // Remove the last error bubble before retrying
+    setChatMessages((prev) => prev.slice(0, -1));
+    await sendChatMessage(msg);
   };
 
   if (isContractLoading) {
@@ -484,6 +510,8 @@ export function DecisionRoom() {
                   className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground rounded-tr-sm"
+                      : msg.isError
+                      ? "bg-orange-50 border border-orange-200 text-orange-800 dark:bg-orange-950/30 dark:border-orange-800 dark:text-orange-300 rounded-tl-sm"
                       : "bg-muted text-foreground rounded-tl-sm"
                   }`}
                 >
@@ -492,6 +520,22 @@ export function DecisionRoom() {
                       <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.3s]" />
                       <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce [animation-delay:-0.15s]" />
                       <span className="w-1.5 h-1.5 bg-primary/50 rounded-full animate-bounce" />
+                    </div>
+                  ) : msg.isError ? (
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-orange-500" />
+                        <span className="whitespace-pre-wrap">{msg.text}</span>
+                      </div>
+                      {msg.retryable && lastFailedMessage && (
+                        <button
+                          onClick={handleRetry}
+                          disabled={isSending}
+                          className="text-xs font-medium underline underline-offset-2 text-orange-600 dark:text-orange-400 hover:opacity-80 disabled:opacity-50"
+                        >
+                          إعادة المحاولة
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <span className="whitespace-pre-wrap">{msg.text}</span>
