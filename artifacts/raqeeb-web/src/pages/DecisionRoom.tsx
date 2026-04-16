@@ -572,7 +572,7 @@ export function DecisionRoom() {
 
       {/* ── Legal Chat Sheet ─────────────────────────────────────────────── */}
       <Sheet open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <SheetContent side="left" className="w-full sm:w-[420px] flex flex-col p-0 bg-[#0A0E1A] border-[#1E2D45]" dir="rtl">
+        <SheetContent side="right" className="w-full sm:w-[500px] flex flex-col p-0 bg-[#0A0E1A] border-[#1E2D45]" dir="rtl">
           <SheetHeader className="px-5 py-4 border-b border-[#1E2D45] bg-[#111827]">
             <SheetTitle className="flex items-center gap-2.5 text-sm text-white">
               <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
