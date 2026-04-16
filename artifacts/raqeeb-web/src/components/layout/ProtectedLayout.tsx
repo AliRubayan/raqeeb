@@ -79,9 +79,6 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2">
             {/* Email + subscription icon */}
             <div className="hidden md:flex items-center gap-1.5">
-              <span className="text-xs text-[#94A3B8] truncate max-w-[180px]">
-                {user.email}
-              </span>
               {(user as any).hasActiveSubscription && (
                 <div className="relative group">
                   <BadgeCheck className="h-4 w-4 text-primary cursor-default" />
@@ -92,6 +89,9 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
                   </div>
                 </div>
               )}
+              <span className="text-xs text-[#94A3B8] truncate max-w-[180px]">
+                {user.email}
+              </span>
             </div>
 
             {/* Logout */}
