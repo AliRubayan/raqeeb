@@ -11,7 +11,7 @@ import { setActiveSubscription } from "../repositories/users";
 const router = Router();
 
 const SUBSCRIPTION_PRODUCT_ID =
-  process.env["STREAMPAY_AUDIT_PRODUCT_ID"] ?? "75ce36be-0331-48d6-a40a-0b8b44b839f6";
+  process.env["STREAMPAY_AUDIT_PRODUCT_ID"] ?? "6e7c7c5b-7104-44cd-9e0b-bd6aa4fc0d45";
 
 router.post("/create-link", requireAuth, async (req, res) => {
   const { contractId, contractName } = req.body as {
