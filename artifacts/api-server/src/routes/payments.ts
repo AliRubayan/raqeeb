@@ -47,8 +47,8 @@ router.post("/create-link", requireAuth, async (req, res) => {
     description: `اشتراك دائم للوصول إلى تحليل العقود`,
     items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
     contractId,
-    successRedirectUrl: `${baseUrl}${webBase}/dashboard`,
-    failureRedirectUrl: `${baseUrl}${webBase}/dashboard`,
+    successRedirectUrl: `${baseUrl}${webBase}/`,
+    failureRedirectUrl: `${baseUrl}${webBase}/`,
   });
 
   await updateContractPaymentLink(contractId, paymentLink.id, paymentLink.url);
@@ -74,8 +74,8 @@ router.post("/create-subscription-link", requireAuth, async (req, res) => {
     description: "اشتراك في خدمة تحليل العقود بالذكاء الاصطناعي",
     items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
     contractId: `sub_${req.session.userId}`,
-    successRedirectUrl: `${baseUrl}${webBase}/dashboard`,
-    failureRedirectUrl: `${baseUrl}${webBase}/dashboard`,
+    successRedirectUrl: `${baseUrl}${webBase}/`,
+    failureRedirectUrl: `${baseUrl}${webBase}/`,
   });
 
   // Re-create with the real linkId embedded in the success URL so we don't depend on session
@@ -84,8 +84,8 @@ router.post("/create-subscription-link", requireAuth, async (req, res) => {
     description: "اشتراك في خدمة تحليل العقود بالذكاء الاصطناعي",
     items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
     contractId: `sub_${req.session.userId}`,
-    successRedirectUrl: `${baseUrl}${webBase}/dashboard`,
-    failureRedirectUrl: `${baseUrl}${webBase}/dashboard`,
+    successRedirectUrl: `${baseUrl}${webBase}/`,
+    failureRedirectUrl: `${baseUrl}${webBase}/`,
   });
 
   res.json({ paymentUrl: link.url, linkId: link.id });
