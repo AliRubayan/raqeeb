@@ -99,7 +99,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
                 size="sm"
                 disabled={subscribing}
                 onClick={handleSubscribe}
-                className="h-8 px-3 gap-1.5 text-xs font-semibold"
+                className="h-8 px-3 gap-1.5 text-xs font-semibold cursor-pointer"
               >
                 {subscribing
                   ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
