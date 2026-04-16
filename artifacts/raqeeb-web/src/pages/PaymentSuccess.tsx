@@ -117,7 +117,7 @@ export function PaymentSuccess() {
       <div className="w-full max-w-sm text-center space-y-7">
         {/* Logo */}
         <img
-          src="/rqeeb-logo.png"
+          src="/rqeeb-logo.jpg"
           alt="رقيب"
           className="w-12 h-12 object-contain mx-auto opacity-75"
         />

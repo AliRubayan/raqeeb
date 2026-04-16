@@ -38,7 +38,7 @@ export function Login() {
       {/* Left panel — branding */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 bg-[#060912] border-l border-border/40 p-12">
         <div className="flex items-center gap-3">
-          <img src="/rqeeb-logo.png" alt="رقيب" className="h-10 w-10 object-contain" />
+          <img src="/rqeeb-logo.jpg" alt="رقيب" className="h-10 w-10 object-contain" />
           <span className="text-xl font-bold text-white tracking-wide">رقيب</span>
         </div>
 
@@ -75,7 +75,7 @@ export function Login() {
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
         {/* Mobile logo */}
         <div className="flex items-center gap-2 mb-10 lg:hidden">
-          <img src="/rqeeb-logo.png" alt="رقيب" className="h-10 w-10 object-contain" />
+          <img src="/rqeeb-logo.jpg" alt="رقيب" className="h-10 w-10 object-contain" />
           <span className="text-xl font-bold text-white">رقيب</span>
         </div>
 
