@@ -6,6 +6,7 @@ import { usersTable } from "./users";
 export const contractStatusEnum = pgEnum("contract_status", [
   "Paid",
   "Analyzing",
+  "Ready",
   "Completed",
   "Rejected",
 ]);
