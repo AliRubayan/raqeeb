@@ -55,7 +55,7 @@ export function Register() {
           <div className="w-12 h-0.5 bg-primary" />
           <h1 className="text-4xl font-black text-white leading-snug">
             انضم إلى رقيب<br />
-            <span className="text-primary">Always Watching Out For You</span>
+            <span className="text-primary">دائماً نراقب لأجلك</span>
           </h1>
 
           <div className="space-y-4">
@@ -70,7 +70,7 @@ export function Register() {
           </div>
         </div>
 
-        <p className="text-xs text-[#94A3B8]/50">© 2025 Rqeeb. Always watching out for you.</p>
+        <p className="text-xs text-[#94A3B8]/50">© 2025 رقيب. دائماً نراقب لأجلك.</p>
       </div>
 
       {/* Right form panel */}
