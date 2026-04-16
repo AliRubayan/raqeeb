@@ -14,6 +14,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
   const [subscribing, setSubscribing] = useState(false);
   const [polling, setPolling] = useState(false);
   const [subscribeSuccess, setSubscribeSuccess] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
   const pollLinkId = useRef<string | null>(null);
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -23,6 +24,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       pollInterval.current = null;
     }
     setPolling(false);
+    setPaymentUrl(null);
     pollLinkId.current = null;
   }, []);
 
@@ -62,6 +64,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       // Open StreamPay in a new tab — user stays on this page
       window.open(data.paymentUrl, "_blank", "noopener,noreferrer");
       pollLinkId.current = data.linkId;
+      setPaymentUrl(data.paymentUrl);
       setSubscribing(false);
       setPolling(true);
 
@@ -145,9 +148,19 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary">
                   <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                   <span>بانتظار تأكيد الدفع...</span>
+                  {paymentUrl && (
+                    <a
+                      href={paymentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#94A3B8] hover:text-white underline underline-offset-2 text-xs"
+                    >
+                      افتح رابط الدفع
+                    </a>
+                  )}
                   <button
                     onClick={stopPolling}
-                    className="text-[#94A3B8] hover:text-white text-xs underline-offset-2 hover:underline ml-1"
+                    className="text-[#94A3B8] hover:text-white text-xs underline-offset-2 hover:underline"
                   >
                     إلغاء
                   </button>
