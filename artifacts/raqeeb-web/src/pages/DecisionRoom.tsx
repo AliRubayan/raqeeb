@@ -331,8 +331,16 @@ function InspectorPanel({ raw }: { raw?: string }) {
 
 function LawFinderPanel({ raw }: { raw?: string }) {
   const d = parseN8nOutput(raw ?? "");
-  if (!raw || Object.keys(d).length === 0) {
+  if (!raw) {
     return <p className="text-[#94A3B8] text-sm text-right" dir="rtl">لا توجد مخرجات متوفرة من الباحث القانوني.</p>;
+  }
+  // Plain text fallback — n8n returned an unstructured paragraph
+  if (d["RAW"]) {
+    return (
+      <p className="text-sm leading-7 text-white/90 text-right whitespace-pre-wrap" dir="rtl">
+        {d["RAW"]}
+      </p>
+    );
   }
   const fixable = /yes|نعم/i.test(d["FIXABLE"] ?? "");
   const confirmed = /confirmed|مؤكد/i.test(d["CONFIRMATION"] ?? "");
@@ -374,8 +382,16 @@ function LawFinderPanel({ raw }: { raw?: string }) {
 
 function DrafterPanel({ raw }: { raw?: string }) {
   const d = parseN8nOutput(raw ?? "");
-  if (!raw || Object.keys(d).length === 0) {
+  if (!raw) {
     return <p className="text-[#94A3B8] text-sm text-right" dir="rtl">لا توجد مخرجات متوفرة من المحامي.</p>;
+  }
+  // Plain text fallback — n8n returned an unstructured paragraph
+  if (d["RAW"]) {
+    return (
+      <p className="text-sm leading-7 text-white/90 text-right whitespace-pre-wrap" dir="rtl">
+        {d["RAW"]}
+      </p>
+    );
   }
 
   return (
