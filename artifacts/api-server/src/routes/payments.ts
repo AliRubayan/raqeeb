@@ -88,7 +88,7 @@ router.post("/create-subscription-link", requireAuth, async (req, res) => {
     failureRedirectUrl: `${baseUrl}${webBase}/payment-failed`,
   });
 
-  res.json({ paymentUrl: link.url });
+  res.json({ paymentUrl: link.url, linkId: link.id });
 });
 
 // Verify a standalone subscription payment and mark user as subscribed
