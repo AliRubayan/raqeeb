@@ -13,11 +13,207 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import {
   Loader2, AlertTriangle, ShieldAlert, Scale, PenTool,
   CheckCircle, MessageSquare, Send, Bot, User, XCircle,
-  ArrowRight, Calendar,
+  ArrowRight, Calendar, Check,
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { parseN8nOutput } from "@/lib/parseN8nOutput";
+
+// ── Analyzing progress view ───────────────────────────────────────────────
+
+const AGENTS = [
+  {
+    id: "inspector",
+    icon: ShieldAlert,
+    label: "المفتش",
+    color: "#0D9488",
+    messages: [
+      "يقرأ بنود العقد...",
+      "يحلل المواد المالية...",
+      "يرصد المخاطر والثغرات...",
+      "يدقق في شروط الإنهاء...",
+    ],
+  },
+  {
+    id: "lawfinder",
+    icon: Scale,
+    label: "الباحث القانوني",
+    color: "#6366F1",
+    messages: [
+      "يبحث في المنظومة التشريعية...",
+      "يراجع لوائح هيئة السوق...",
+      "يقيّم مدى الامتثال النظامي...",
+      "يوثّق المراجع القانونية...",
+    ],
+  },
+  {
+    id: "drafter",
+    icon: PenTool,
+    label: "المحامي",
+    color: "#F59E0B",
+    messages: [
+      "يصيغ التوصيات القانونية...",
+      "يعدّ مسودة التعديلات...",
+      "يراجع صياغة البنود...",
+      "ينهي التقرير النهائي...",
+    ],
+  },
+];
+
+const TOTAL_SECONDS = 180;
+
+function AnalyzingView({ isReady }: { isReady: boolean }) {
+  const [elapsed, setElapsed] = useState(0);
+  const [msgIdx, setMsgIdx] = useState([0, 0, 0]);
+
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setElapsed((e) => e + 1);
+      setMsgIdx((prev) =>
+        prev.map((idx, i) => {
+          const agentStart = (i / 3) * TOTAL_SECONDS;
+          const agentEnd = ((i + 1) / 3) * TOTAL_SECONDS;
+          if (elapsed >= agentStart && elapsed < agentEnd) {
+            return (idx + 1) % AGENTS[i].messages.length;
+          }
+          return idx;
+        }),
+      );
+    }, 3200);
+    return () => clearInterval(tick);
+  }, [elapsed]);
+
+  const rawProgress = isReady ? 100 : Math.min(95, (elapsed / TOTAL_SECONDS) * 100);
+  const progress = Math.round(rawProgress);
+
+  const getAgentState = (i: number): "waiting" | "active" | "done" => {
+    if (isReady) return "done";
+    const threshold = (i / 3) * 100;
+    const nextThreshold = ((i + 1) / 3) * 100;
+    if (progress < threshold) return "waiting";
+    if (progress >= nextThreshold) return "done";
+    return "active";
+  };
+
+  return (
+    <div className="rq-card rounded-2xl p-8 space-y-8" dir="rtl">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h3 className="text-xl font-bold text-white">
+          {isReady ? "اكتمل التحليل" : "وكلاء الذكاء الاصطناعي يعملون"}
+        </h3>
+        <p className="text-sm text-[#94A3B8]">
+          {isReady
+            ? "تم تحليل العقد بنجاح — يمكنك مراجعة النتائج أعلاه"
+            : "يقوم المفتش والباحث القانوني والمحامي بقراءة وتحليل بنود العقد"}
+        </p>
+      </div>
+
+      {/* Agent cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {AGENTS.map((agent, i) => {
+          const state = getAgentState(i);
+          const Icon = agent.icon;
+          return (
+            <div
+              key={agent.id}
+              className={`rounded-xl border p-4 transition-all duration-700 ${
+                state === "active"
+                  ? "bg-white/[0.04] border-primary/30"
+                  : state === "done"
+                  ? "bg-emerald-500/5 border-emerald-500/20"
+                  : "bg-white/[0.02] border-[#1E2D45]"
+              }`}
+            >
+              {/* Icon + name */}
+              <div className="flex items-center gap-2.5 mb-3">
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-700 ${
+                    state === "active"
+                      ? "bg-primary/15 border border-primary/30"
+                      : state === "done"
+                      ? "bg-emerald-500/15 border border-emerald-500/30"
+                      : "bg-white/5 border border-[#1E2D45]"
+                  }`}
+                >
+                  {state === "done" ? (
+                    <Check className="h-4 w-4 text-emerald-400" />
+                  ) : (
+                    <Icon
+                      className={`h-4 w-4 ${
+                        state === "active" ? "text-primary" : "text-[#94A3B8]"
+                      }`}
+                    />
+                  )}
+                </div>
+                <span
+                  className={`text-sm font-semibold transition-colors duration-700 ${
+                    state === "active"
+                      ? "text-white"
+                      : state === "done"
+                      ? "text-emerald-400"
+                      : "text-[#94A3B8]"
+                  }`}
+                >
+                  {agent.label}
+                </span>
+                {state === "active" && (
+                  <div className="mr-auto flex gap-0.5">
+                    {[0, 1, 2].map((d) => (
+                      <span
+                        key={d}
+                        className="w-1 h-1 rounded-full bg-primary animate-bounce"
+                        style={{ animationDelay: `${d * 0.15}s` }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Status text */}
+              <p
+                className={`text-xs leading-relaxed transition-colors duration-700 ${
+                  state === "active"
+                    ? "text-[#94A3B8]"
+                    : state === "done"
+                    ? "text-emerald-500/70"
+                    : "text-[#94A3B8]/40"
+                }`}
+              >
+                {state === "waiting"
+                  ? "في الانتظار..."
+                  : state === "done"
+                  ? "اكتمل التحليل ✓"
+                  : agent.messages[msgIdx[i]]}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-xs text-[#94A3B8]">
+          <span>التقدم</span>
+          <span className="font-mono">{progress}%</span>
+        </div>
+        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-[#1E2D45]">
+          <div
+            className={`h-full rounded-full transition-all duration-1000 ease-out ${
+              isReady ? "bg-emerald-500" : "bg-primary"
+            }`}
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        {!isReady && (
+          <p className="text-[10px] text-[#94A3B8]/50 text-center">
+            يستغرق التحليل عادةً من دقيقتين إلى ثلاث دقائق
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── Sanitize display text (replace em-dashes with commas) ──────────────────
 
@@ -449,24 +645,7 @@ export function DecisionRoom() {
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       {isAnalyzing ? (
-        <div className="rq-card rounded-2xl p-16 text-center">
-          <div className="relative w-20 h-20 mx-auto mb-8">
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: "2s" }} />
-            <div className="relative w-20 h-20 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <Loader2 className="h-9 w-9 text-primary animate-spin" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-3">وكلاء الذكاء الاصطناعي يعملون</h3>
-          <p className="text-[#94A3B8] max-w-md mx-auto leading-relaxed mb-8">
-            يقوم المفتش المالي، والباحث القانوني، والمصيغ بقراءة وتحليل بنود العقد لتحديد المخاطر والفرص.
-          </p>
-          <div className="w-full max-w-xs mx-auto">
-            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full w-1/2 bg-primary rounded-full animate-pulse" />
-            </div>
-          </div>
-        </div>
-
+        <AnalyzingView isReady={false} />
       ) : auditResult ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
