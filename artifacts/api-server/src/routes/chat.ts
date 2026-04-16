@@ -83,9 +83,13 @@ router.post("/", requireAuth, async (req, res) => {
 
     // All values were unevaluated n8n template expressions — workflow misconfiguration
     if (!reply) {
-      logger.warn({ contractId, raw }, "n8n chat response contains only unevaluated templates — workflow config issue");
-      res.status(502).json({
-        error: "لم يتمكن المساعد من توليد رد. يرجى التواصل مع الفريق التقني لإصلاح إعدادات سير العمل.",
+      logger.warn(
+        { contractId, raw },
+        "n8n chat response contains only unevaluated templates — n8n team must enable expression mode (= toggle) on the 'reply' field in the 'Respond to Webhook' node of raqeeb-chat workflow",
+      );
+      res.status(503).json({
+        error: "المساعد القانوني غير متاح مؤقتاً، يرجى المحاولة مرة أخرى لاحقاً.",
+        retryable: true,
       });
       return;
     }
