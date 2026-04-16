@@ -1,34 +1,15 @@
 import { useGetMe, useLogoutUser } from "@workspace/api-client-react";
 import { useLocation, Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, LayoutDashboard, FilePlus, BadgeCheck, Sparkles, CheckCircle } from "lucide-react";
-import { ReactNode, useState, useEffect, useRef, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { Loader2, LogOut, LayoutDashboard, FilePlus, BadgeCheck, Sparkles } from "lucide-react";
+import { ReactNode, useState } from "react";
 
 export function ProtectedLayout({ children }: { children: ReactNode }) {
   const { data: user, isLoading, error } = useGetMe();
   const [location, setLocation] = useLocation();
   const logoutUser = useLogoutUser();
-  const queryClient = useQueryClient();
 
   const [subscribing, setSubscribing] = useState(false);
-  const [polling, setPolling] = useState(false);
-  const [subscribeSuccess, setSubscribeSuccess] = useState(false);
-  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
-  const pollLinkId = useRef<string | null>(null);
-  const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const stopPolling = useCallback(() => {
-    if (pollInterval.current) {
-      clearInterval(pollInterval.current);
-      pollInterval.current = null;
-    }
-    setPolling(false);
-    setPaymentUrl(null);
-    pollLinkId.current = null;
-  }, []);
-
-  useEffect(() => () => stopPolling(), [stopPolling]);
 
   if (isLoading) {
     return (
@@ -61,34 +42,7 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
       if (!res.ok) throw new Error("فشل إنشاء رابط الدفع");
       const data = await res.json();
 
-      // Open StreamPay in a new tab — user stays on this page
-      window.open(data.paymentUrl, "_blank", "noopener,noreferrer");
-      pollLinkId.current = data.linkId;
-      setPaymentUrl(data.paymentUrl);
-      setSubscribing(false);
-      setPolling(true);
-
-      // Poll every 3 s until the payment is confirmed
-      pollInterval.current = setInterval(async () => {
-        try {
-          const vRes = await fetch("/api/payments/verify-subscription", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ linkId: pollLinkId.current }),
-          });
-          if (!vRes.ok) return;
-          const vData = await vRes.json();
-          if (vData.subscribed) {
-            stopPolling();
-            setSubscribeSuccess(true);
-            // Re-fetch user so the badge appears and button disappears
-            await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-          }
-        } catch {
-          // transient error — keep polling
-        }
-      }, 3000);
+      window.location.href = data.paymentUrl;
     } catch {
       setSubscribing(false);
     }
@@ -142,51 +96,19 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
           {/* ── End: Email + subscription badge + Logout ── */}
           <div className="flex items-center gap-2">
             {/* Subscribe CTA — shown only when no active subscription */}
-            {!(user as any).hasActiveSubscription && !subscribeSuccess && (
-              polling ? (
-                /* Waiting for payment state */
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary/30 bg-primary/5 text-xs text-primary">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-                  <span>بانتظار تأكيد الدفع...</span>
-                  {paymentUrl && (
-                    <a
-                      href={paymentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#94A3B8] hover:text-white underline underline-offset-2 text-xs"
-                    >
-                      افتح رابط الدفع
-                    </a>
-                  )}
-                  <button
-                    onClick={stopPolling}
-                    className="text-[#94A3B8] hover:text-white text-xs underline-offset-2 hover:underline"
-                  >
-                    إلغاء
-                  </button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  disabled={subscribing}
-                  onClick={handleSubscribe}
-                  className="h-8 px-3 gap-1.5 text-xs font-semibold cursor-pointer"
-                >
-                  {subscribing
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <Sparkles className="h-3.5 w-3.5" />
-                  }
-                  اشتراك في الخدمة
-                </Button>
-              )
-            )}
-
-            {/* Brief success flash */}
-            {subscribeSuccess && !(user as any).hasActiveSubscription && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
-                <CheckCircle className="h-3.5 w-3.5" />
-                تم الاشتراك بنجاح
-              </div>
+            {!(user as any).hasActiveSubscription && (
+              <Button
+                size="sm"
+                disabled={subscribing}
+                onClick={handleSubscribe}
+                className="h-8 px-3 gap-1.5 text-xs font-semibold cursor-pointer"
+              >
+                {subscribing
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Sparkles className="h-3.5 w-3.5" />
+                }
+                اشتراك في الخدمة
+              </Button>
             )}
 
             {/* Email + subscription icon */}
