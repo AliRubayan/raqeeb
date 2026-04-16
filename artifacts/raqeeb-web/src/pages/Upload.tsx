@@ -7,9 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 import { UploadCloud, File, Loader2, CreditCard, CheckCircle, ShieldCheck, Cpu, FileSearch } from "lucide-react";
 
 const steps = [
-  { icon: FileSearch, label: "المفتش المالي", desc: "يفحص بنود العقد" },
+  { icon: FileSearch, label: "المفتش", desc: "يفحص بنود العقد" },
   { icon: ShieldCheck, label: "الباحث القانوني", desc: "يحدد المراجع والعقوبات" },
-  { icon: Cpu, label: "المصيغ القانوني", desc: "يقترح البدائل" },
+  { icon: Cpu, label: "المحامي", desc: "يقترح البدائل" },
 ];
 
 export function Upload() {
@@ -58,6 +58,10 @@ export function Upload() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!contractName.trim()) {
+      toast({ variant: "destructive", title: "اسم العقد مطلوب", description: "يرجى إدخال اسم العقد قبل المتابعة" });
+      return;
+    }
     if (!file) {
       toast({ variant: "destructive", title: "الملف مطلوب", description: "يرجى اختيار ملف العقد للتحليل" });
       return;
@@ -143,7 +147,7 @@ export function Upload() {
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">تحليل عقد جديد</h1>
         <p className="text-[#94A3B8] text-sm mt-1.5">
-          ارفع ملف PDF — سيبدأ ثلاثة وكلاء من الذكاء الاصطناعي فحصه فوراً
+          ارفع ملف PDF، سيبدأ ثلاثة وكلاء من الذكاء الاصطناعي فحصه فوراً
         </p>
       </div>
 
@@ -170,7 +174,6 @@ export function Upload() {
           <div className="space-y-2">
             <Label htmlFor="contractName" className="text-sm text-[#94A3B8]">
               اسم العقد
-              <span className="text-[#94A3B8]/50 text-xs mr-1">(اختياري)</span>
             </Label>
             <Input
               id="contractName"
@@ -178,6 +181,7 @@ export function Upload() {
               placeholder="مثال: عقد تأسيس شركة ذات مسؤولية محدودة"
               value={contractName}
               onChange={(e) => setContractName(e.target.value)}
+              required
               className="bg-[#0A0E1A] border-[#1E2D45] text-white placeholder:text-[#94A3B8]/40 focus:border-primary h-11"
             />
           </div>
@@ -269,7 +273,7 @@ export function Upload() {
             size="lg"
             className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg shadow-primary/20"
             data-testid="button-submit"
-            disabled={isUploading || !file || hasSubscription === null}
+            disabled={isUploading || !file || !contractName.trim() || hasSubscription === null}
           >
             {isUploading ? (
               <>
