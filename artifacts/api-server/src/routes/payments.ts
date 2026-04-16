@@ -61,6 +61,45 @@ router.post("/create-link", requireAuth, async (req, res) => {
   });
 });
 
+// Standalone subscription link — no contract required
+router.post("/create-subscription-link", requireAuth, async (req, res) => {
+  const webBase = (process.env["RAQEEB_WEB_BASE_PATH"] ?? "/raqeeb-web").replace(/\/$/, "");
+  const baseUrl = process.env["REPLIT_DEV_DOMAIN"]
+    ? `https://${process.env["REPLIT_DEV_DOMAIN"]}`
+    : "http://localhost:80";
+
+  const link = await createPaymentLink({
+    name: "اشتراك رقيب — الخدمة",
+    description: "اشتراك في خدمة تحليل العقود بالذكاء الاصطناعي",
+    items: [{ product_id: SUBSCRIPTION_PRODUCT_ID, quantity: 1 }],
+    contractId: `sub_${req.session.userId}`,
+    successRedirectUrl: `${baseUrl}${webBase}/payment-success?type=subscription`,
+    failureRedirectUrl: `${baseUrl}${webBase}/payment-failed`,
+  });
+
+  // Store the link ID in the session so we can verify it on success
+  (req.session as Record<string, unknown>)["subscriptionLinkId"] = link.id;
+
+  res.json({ paymentUrl: link.url });
+});
+
+// Verify a standalone subscription payment and mark user as subscribed
+router.post("/verify-subscription", requireAuth, async (req, res) => {
+  const linkId = (req.session as Record<string, unknown>)["subscriptionLinkId"] as string | undefined;
+  if (!linkId) {
+    res.status(400).json({ error: "No pending subscription payment found" });
+    return;
+  }
+
+  const paid = await isPaymentCompleted(linkId);
+  if (paid) {
+    await setActiveSubscription(req.session.userId!, true);
+    delete (req.session as Record<string, unknown>)["subscriptionLinkId"];
+  }
+
+  res.json({ subscribed: paid });
+});
+
 router.get("/verify/:contractId", requireAuth, async (req, res) => {
   const contractId = req.params.contractId as string;
 

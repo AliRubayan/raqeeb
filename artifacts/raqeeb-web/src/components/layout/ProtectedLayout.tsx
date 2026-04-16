@@ -2,12 +2,13 @@ import { useGetMe, useLogoutUser } from "@workspace/api-client-react";
 import { useLocation, Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Loader2, LogOut, LayoutDashboard, FilePlus, BadgeCheck, Sparkles } from "lucide-react";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 
 export function ProtectedLayout({ children }: { children: ReactNode }) {
   const { data: user, isLoading, error } = useGetMe();
   const [location, setLocation] = useLocation();
   const logoutUser = useLogoutUser();
+  const [subscribing, setSubscribing] = useState(false);
 
   if (isLoading) {
     return (
@@ -28,6 +29,21 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
     logoutUser.mutate(undefined, {
       onSuccess: () => setLocation("/login"),
     });
+  };
+
+  const handleSubscribe = async () => {
+    setSubscribing(true);
+    try {
+      const res = await fetch("/api/payments/create-subscription-link", {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("فشل إنشاء رابط الدفع");
+      const data = await res.json();
+      window.location.href = data.paymentUrl;
+    } catch {
+      setSubscribing(false);
+    }
   };
 
   const navLinks = [
@@ -79,15 +95,18 @@ export function ProtectedLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2">
             {/* Subscribe CTA — shown only when no active subscription */}
             {!(user as any).hasActiveSubscription && (
-              <Link href="/upload">
-                <Button
-                  size="sm"
-                  className="h-8 px-3 gap-1.5 bg-primary hover:bg-primary/90 text-white text-xs font-semibold shadow shadow-primary/20"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  اشتراك في الخدمة
-                </Button>
-              </Link>
+              <Button
+                size="sm"
+                disabled={subscribing}
+                onClick={handleSubscribe}
+                className="h-8 px-3 gap-1.5 text-xs font-semibold"
+              >
+                {subscribing
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <Sparkles className="h-3.5 w-3.5" />
+                }
+                اشتراك في الخدمة
+              </Button>
             )}
 
             {/* Email + subscription icon */}
