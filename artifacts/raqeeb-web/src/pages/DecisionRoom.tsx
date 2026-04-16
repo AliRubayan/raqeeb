@@ -816,7 +816,7 @@ export function DecisionRoom() {
           </SheetHeader>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" dir="ltr">
             {chatMessages.map((msg, i) => (
               <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
                 <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${
