@@ -470,62 +470,7 @@ export function DecisionRoom() {
       ) : auditResult ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          {/* ── Risk sidebar ── */}
-          <div className="space-y-4">
-            {/* Risk score card */}
-            <div className="rq-card rounded-2xl overflow-hidden">
-              {/* Gradient top bar */}
-              <div className="h-1 w-full" style={{
-                background: `linear-gradient(90deg, ${riskColor} 0%, ${riskColor}40 100%)`
-              }} />
-              <div className="p-6">
-                <p className="text-xs font-bold uppercase tracking-widest text-[#94A3B8] mb-5">
-                  مؤشر المخاطر الإجمالي
-                </p>
-                <div className="flex flex-col items-center py-2">
-                  <div
-                    className="text-6xl font-black mb-1 tabular-nums"
-                    style={{ color: riskColor }}
-                  >
-                    {riskScore.toFixed(1)}
-                  </div>
-                  <div className="text-sm text-[#94A3B8] mb-6">من 10.0</div>
-
-                  {/* Progress bar */}
-                  <div className="w-full">
-                    <div className="flex justify-between text-xs font-medium mb-2">
-                      <span className="text-[#94A3B8]">مستوى الخطر</span>
-                      <span className={riskPillClass + " px-2 py-0.5 rounded-full text-xs"}>
-                        {riskLabel}
-                      </span>
-                    </div>
-                    <div className="w-full h-2.5 bg-white/8 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-700"
-                        style={{ width: `${riskPercentage}%`, background: riskColor }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Meta card */}
-            <div className="rq-card rounded-2xl p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-[#94A3B8] mb-4">
-                معلومات التدقيق
-              </p>
-              <div className="flex items-center gap-2.5 text-sm">
-                <Calendar className="h-4 w-4 text-[#94A3B8] shrink-0" />
-                <span className="text-[#94A3B8] text-xs">تاريخ التحليل</span>
-                <span className="font-medium text-white text-xs mr-auto" dir="ltr">
-                  {new Date(auditResult.createdAt).toLocaleDateString("ar-SA")}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* ── AI Agent Tabs ── */}
+          {/* ── AI Agent Tabs (RIGHT in RTL — first in DOM) ── */}
           <div className="lg:col-span-2">
             <div className="rq-card rounded-2xl overflow-hidden h-full flex flex-col">
               <Tabs defaultValue="inspector" className="w-full flex flex-col flex-1">
@@ -562,6 +507,59 @@ export function DecisionRoom() {
                   </TabsContent>
                 </div>
               </Tabs>
+            </div>
+          </div>
+
+          {/* ── Risk sidebar (LEFT in RTL — second in DOM) ── */}
+          <div className="space-y-4">
+            {/* Risk score card */}
+            <div className="rq-card rounded-2xl overflow-hidden">
+              <div className="h-1 w-full" style={{
+                background: `linear-gradient(90deg, ${riskColor} 0%, ${riskColor}40 100%)`
+              }} />
+              <div className="p-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-[#94A3B8] mb-5">
+                  مؤشر المخاطر الإجمالي
+                </p>
+                <div className="flex flex-col items-center py-2">
+                  <div
+                    className="text-6xl font-black mb-1 tabular-nums"
+                    style={{ color: riskColor }}
+                  >
+                    {riskScore.toFixed(1)}
+                  </div>
+                  <div className="text-sm text-[#94A3B8] mb-6">من 10.0</div>
+
+                  <div className="w-full">
+                    <div className="flex justify-between text-xs font-medium mb-2">
+                      <span className="text-[#94A3B8]">مستوى الخطر</span>
+                      <span className={riskPillClass + " px-2 py-0.5 rounded-full text-xs"}>
+                        {riskLabel}
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-white/8 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${riskPercentage}%`, background: riskColor }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Meta card */}
+            <div className="rq-card rounded-2xl p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#94A3B8] mb-4">
+                معلومات التدقيق
+              </p>
+              <div className="flex items-center gap-2.5 text-sm">
+                <Calendar className="h-4 w-4 text-[#94A3B8] shrink-0" />
+                <span className="text-[#94A3B8] text-xs">تاريخ التحليل</span>
+                <span className="font-medium text-white text-xs mr-auto" dir="ltr">
+                  {new Date(auditResult.createdAt).toLocaleDateString("ar-SA")}
+                </span>
+              </div>
             </div>
           </div>
         </div>
