@@ -546,6 +546,18 @@ export function DecisionRoom() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
+  // Derive before early returns so all hooks fire unconditionally
+  const isAnalyzing = contract?.status === "Analyzing" || contract?.status === "Paid";
+
+  useEffect(() => {
+    if (!contract) return;
+    if (isAnalyzing) {
+      everAnalyzed.current = true;
+    } else if (!everAnalyzed.current) {
+      setShowResults(true);
+    }
+  }, [isAnalyzing, contract]);
+
   if (isContractLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
@@ -572,18 +584,6 @@ export function DecisionRoom() {
     );
   }
 
-  const isAnalyzing = contract.status === "Analyzing" || contract.status === "Paid";
-
-  // Track whether we ever saw an Analyzing state this session.
-  // Also auto-show results immediately if contract is already Ready/Completed on load.
-  useEffect(() => {
-    if (isAnalyzing) {
-      everAnalyzed.current = true;
-    } else if (!everAnalyzed.current) {
-      // Contract was already done when page loaded — skip the animation
-      setShowResults(true);
-    }
-  }, [isAnalyzing]);
   const riskScore = Number(auditResult?.riskScore ?? 0);
   const riskPercentage = Math.min(100, Math.max(0, riskScore * 10));
 
