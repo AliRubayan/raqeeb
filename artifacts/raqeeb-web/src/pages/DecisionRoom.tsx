@@ -60,37 +60,37 @@ const AGENTS = [
   },
 ];
 
-const TOTAL_MS = 180_000; // 3 min — normal fill target
-const COMPLETE_MS = 5_000; // 5 s — sprint to 100% when n8n finishes
+const FILL_MS   = 5_000; // 5 s to reach 95% (the full "waiting" animation)
+const SPRINT_MS = 1_000; // 1 s to sprint remaining → 100% when n8n is done
 
 function AnalyzingView({ isReady, onComplete }: { isReady: boolean; onComplete: () => void }) {
   const [progress, setProgress] = useState(0);
-  const [visibleCount, setVisibleCount] = useState(0); // agents appear 1-by-1
+  const [visibleCount, setVisibleCount] = useState(0);
   const [msgIdx, setMsgIdx] = useState([0, 0, 0]);
   const startRef = useRef(Date.now());
   const completingRef = useRef(false);
-  const progressRef = useRef(0); // shadow ref so sprint closure can read latest
+  const progressRef = useRef(0);
 
   // ── Agents appear one at a time ──
   useEffect(() => {
-    const t1 = setTimeout(() => setVisibleCount(1), 200);
-    const t2 = setTimeout(() => setVisibleCount(2), 2400);
-    const t3 = setTimeout(() => setVisibleCount(3), 4600);
+    const t1 = setTimeout(() => setVisibleCount(1), 100);
+    const t2 = setTimeout(() => setVisibleCount(2), 1600);
+    const t3 = setTimeout(() => setVisibleCount(3), 3200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
 
-  // ── Slow fill: 0 → 95% over 3 minutes ──
+  // ── Fill 0 → 95% over 5 s, then hold until n8n finishes ──
   useEffect(() => {
     if (isReady) return;
     const id = setInterval(() => {
-      const pct = Math.min(95, ((Date.now() - startRef.current) / TOTAL_MS) * 100);
+      const pct = Math.min(95, ((Date.now() - startRef.current) / FILL_MS) * 95);
       progressRef.current = pct;
       setProgress(Math.round(pct));
-    }, 300);
+    }, 50);
     return () => clearInterval(id);
   }, [isReady]);
 
-  // ── Sprint: remaining → 100% over 5 s when n8n done ──
+  // ── Sprint: remaining → 100% over 1 s when n8n done ──
   useEffect(() => {
     if (!isReady || completingRef.current) return;
     completingRef.current = true;
@@ -99,14 +99,14 @@ function AnalyzingView({ isReady, onComplete }: { isReady: boolean; onComplete: 
     const remaining = 100 - startPct;
     const id = setInterval(() => {
       const elapsed = Date.now() - sprintStart;
-      const pct = Math.min(100, startPct + remaining * (elapsed / COMPLETE_MS));
+      const pct = Math.min(100, startPct + remaining * (elapsed / SPRINT_MS));
       progressRef.current = pct;
       setProgress(Math.round(pct));
       if (pct >= 100) {
         clearInterval(id);
-        setTimeout(onComplete, 600);
+        setTimeout(onComplete, 400);
       }
-    }, 30);
+    }, 20);
     return () => clearInterval(id);
   }, [isReady, onComplete]);
 
