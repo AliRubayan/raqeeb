@@ -327,7 +327,7 @@ function InspectorPanel({ raw }: { raw?: string }) {
 function LawFinderPanel({ raw }: { raw?: string }) {
   const d = parseN8nOutput(raw ?? "");
   if (!raw || Object.keys(d).length === 0) {
-    return <p className="text-[#94A3B8] text-sm">لا توجد مخرجات متوفرة من الباحث القانوني.</p>;
+    return <p className="text-[#94A3B8] text-sm text-right" dir="rtl">لا توجد مخرجات متوفرة من الباحث القانوني.</p>;
   }
   const fixable = /yes|نعم/i.test(d["FIXABLE"] ?? "");
   const confirmed = /confirmed|مؤكد/i.test(d["CONFIRMATION"] ?? "");
@@ -370,34 +370,23 @@ function LawFinderPanel({ raw }: { raw?: string }) {
 function DrafterPanel({ raw }: { raw?: string }) {
   const d = parseN8nOutput(raw ?? "");
   if (!raw || Object.keys(d).length === 0) {
-    return <p className="text-[#94A3B8] text-sm">لا توجد مخرجات متوفرة من المحامي.</p>;
+    return <p className="text-[#94A3B8] text-sm text-right" dir="rtl">لا توجد مخرجات متوفرة من المحامي.</p>;
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" dir="rtl">
       <Field label="البند الأصلي" value={d["ORIGINAL_CLAUSE"]} highlight="red" />
       <Field label="ملخص المخالفة" value={d["VIOLATION_SUMMARY"]} highlight="orange" />
 
-      {(d["REPLACEMENT_CLAUSE_AR"] || d["REPLACEMENT_CLAUSE_EN"]) && (
+      {d["REPLACEMENT_CLAUSE_AR"] && (
         <div className="relative flex rounded-xl overflow-hidden bg-emerald-500/6">
           <div className="w-1.5 shrink-0 bg-emerald-500 opacity-70" />
-          <div className="flex-1 px-4 py-3.5 space-y-3 min-w-0">
+          <div className="flex-1 px-4 py-3.5 space-y-3 min-w-0" dir="rtl">
             <p className="text-[10px] font-extrabold uppercase tracking-[0.15em] text-emerald-400 flex items-center gap-2">
               <PenTool className="h-3 w-3" />
               البند البديل المقترح
             </p>
-            {d["REPLACEMENT_CLAUSE_AR"] && (
-              <div>
-                <p className="text-[10px] font-bold text-[#94A3B8] mb-1.5 uppercase tracking-wider">عربي</p>
-                <p className="text-sm leading-7 whitespace-pre-wrap text-white/90">{sanitize(d["REPLACEMENT_CLAUSE_AR"])}</p>
-              </div>
-            )}
-            {d["REPLACEMENT_CLAUSE_EN"] && (
-              <div>
-                <p className="text-[10px] font-bold text-[#94A3B8] mb-1.5 uppercase tracking-wider">English</p>
-                <p className="text-sm leading-7 whitespace-pre-wrap text-white/90" dir="ltr">{sanitize(d["REPLACEMENT_CLAUSE_EN"])}</p>
-              </div>
-            )}
+            <p className="text-sm leading-7 whitespace-pre-wrap text-white/90 text-right">{sanitize(d["REPLACEMENT_CLAUSE_AR"])}</p>
           </div>
         </div>
       )}
