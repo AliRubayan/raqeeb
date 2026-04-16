@@ -15,7 +15,7 @@ import {
   CheckCircle, MessageSquare, Send, Bot, User, XCircle,
   ArrowRight, Calendar, Check,
 } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { parseN8nOutput } from "@/lib/parseN8nOutput";
 
@@ -60,39 +60,73 @@ const AGENTS = [
   },
 ];
 
-const TOTAL_SECONDS = 180;
+const TOTAL_MS = 180_000; // 3 min — normal fill target
+const COMPLETE_MS = 5_000; // 5 s — sprint to 100% when n8n finishes
 
-function AnalyzingView({ isReady }: { isReady: boolean }) {
-  const [elapsed, setElapsed] = useState(0);
+function AnalyzingView({ isReady, onComplete }: { isReady: boolean; onComplete: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(0); // agents appear 1-by-1
   const [msgIdx, setMsgIdx] = useState([0, 0, 0]);
+  const startRef = useRef(Date.now());
+  const completingRef = useRef(false);
+  const progressRef = useRef(0); // shadow ref so sprint closure can read latest
 
+  // ── Agents appear one at a time ──
   useEffect(() => {
-    const tick = setInterval(() => {
-      setElapsed((e) => e + 1);
-      setMsgIdx((prev) =>
-        prev.map((idx, i) => {
-          const agentStart = (i / 3) * TOTAL_SECONDS;
-          const agentEnd = ((i + 1) / 3) * TOTAL_SECONDS;
-          if (elapsed >= agentStart && elapsed < agentEnd) {
-            return (idx + 1) % AGENTS[i].messages.length;
-          }
-          return idx;
-        }),
-      );
-    }, 3200);
-    return () => clearInterval(tick);
-  }, [elapsed]);
+    const t1 = setTimeout(() => setVisibleCount(1), 200);
+    const t2 = setTimeout(() => setVisibleCount(2), 2400);
+    const t3 = setTimeout(() => setVisibleCount(3), 4600);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, []);
 
-  const rawProgress = isReady ? 100 : Math.min(100, (elapsed / TOTAL_SECONDS) * 100);
-  const progress = Math.round(rawProgress);
+  // ── Slow fill: 0 → 95% over 3 minutes ──
+  useEffect(() => {
+    if (isReady) return;
+    const id = setInterval(() => {
+      const pct = Math.min(95, ((Date.now() - startRef.current) / TOTAL_MS) * 100);
+      progressRef.current = pct;
+      setProgress(Math.round(pct));
+    }, 300);
+    return () => clearInterval(id);
+  }, [isReady]);
+
+  // ── Sprint: remaining → 100% over 5 s when n8n done ──
+  useEffect(() => {
+    if (!isReady || completingRef.current) return;
+    completingRef.current = true;
+    const sprintStart = Date.now();
+    const startPct = progressRef.current;
+    const remaining = 100 - startPct;
+    const id = setInterval(() => {
+      const elapsed = Date.now() - sprintStart;
+      const pct = Math.min(100, startPct + remaining * (elapsed / COMPLETE_MS));
+      progressRef.current = pct;
+      setProgress(Math.round(pct));
+      if (pct >= 100) {
+        clearInterval(id);
+        setTimeout(onComplete, 600);
+      }
+    }, 30);
+    return () => clearInterval(id);
+  }, [isReady, onComplete]);
+
+  // ── Message rotation ──
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMsgIdx((prev) => prev.map((v, i) => (v + 1) % AGENTS[i].messages.length));
+    }, 3200);
+    return () => clearInterval(id);
+  }, []);
+
   const isComplete = progress >= 100;
 
   const getAgentState = (i: number): "waiting" | "active" | "done" => {
-    if (isReady) return "done";
-    const threshold = (i / 3) * 100;
-    const nextThreshold = ((i + 1) / 3) * 100;
-    if (progress < threshold) return "waiting";
-    if (progress >= nextThreshold) return "done";
+    if (isComplete) return "done";
+    // each agent spans 1/3 of the 0-95 range
+    const lo = (i / 3) * 95;
+    const hi = ((i + 1) / 3) * 95;
+    if (progress < lo) return "waiting";
+    if (progress >= hi) return "done";
     return "active";
   };
 
@@ -101,32 +135,35 @@ function AnalyzingView({ isReady }: { isReady: boolean }) {
       {/* Header */}
       <div className="text-center space-y-2">
         <h3 className="text-xl font-bold text-white">
-          {isReady ? "اكتمل التحليل" : "وكلاء الذكاء الاصطناعي يعملون"}
+          {isComplete ? "اكتمل التحليل" : "وكلاء الذكاء الاصطناعي يعملون"}
         </h3>
         <p className="text-sm text-[#94A3B8]">
-          {isReady
-            ? "تم تحليل العقد بنجاح — يمكنك مراجعة النتائج أعلاه"
+          {isComplete
+            ? "تم تحليل العقد — جاري تحميل النتائج..."
             : "يقوم المفتش والباحث القانوني والمحامي بقراءة وتحليل بنود العقد"}
         </p>
       </div>
 
-      {/* Agent cards */}
+      {/* Agent cards — appear one by one */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {AGENTS.map((agent, i) => {
           const state = getAgentState(i);
           const Icon = agent.icon;
+          const visible = visibleCount > i;
           return (
             <div
               key={agent.id}
               className={`rounded-xl border p-4 transition-all duration-700 ${
+                visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+              } ${
                 state === "active"
                   ? "bg-white/[0.04] border-primary/30"
                   : state === "done"
                   ? "bg-emerald-500/5 border-emerald-500/20"
                   : "bg-white/[0.02] border-[#1E2D45]"
               }`}
+              style={{ transitionDelay: visible ? `${i * 80}ms` : "0ms" }}
             >
-              {/* Icon + name */}
               <div className="flex items-center gap-2.5 mb-3">
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-700 ${
@@ -140,20 +177,12 @@ function AnalyzingView({ isReady }: { isReady: boolean }) {
                   {state === "done" ? (
                     <Check className="h-4 w-4 text-emerald-400" />
                   ) : (
-                    <Icon
-                      className={`h-4 w-4 ${
-                        state === "active" ? "text-primary" : "text-[#94A3B8]"
-                      }`}
-                    />
+                    <Icon className={`h-4 w-4 ${state === "active" ? "text-primary" : "text-[#94A3B8]"}`} />
                   )}
                 </div>
                 <span
                   className={`text-sm font-semibold transition-colors duration-700 ${
-                    state === "active"
-                      ? "text-white"
-                      : state === "done"
-                      ? "text-emerald-400"
-                      : "text-[#94A3B8]"
+                    state === "active" ? "text-white" : state === "done" ? "text-emerald-400" : "text-[#94A3B8]"
                   }`}
                 >
                   {agent.label}
@@ -170,22 +199,12 @@ function AnalyzingView({ isReady }: { isReady: boolean }) {
                   </div>
                 )}
               </div>
-
-              {/* Status text */}
               <p
                 className={`text-xs leading-relaxed transition-colors duration-700 ${
-                  state === "active"
-                    ? "text-[#94A3B8]"
-                    : state === "done"
-                    ? "text-emerald-500/70"
-                    : "text-[#94A3B8]/40"
+                  state === "active" ? "text-[#94A3B8]" : state === "done" ? "text-emerald-500/70" : "text-[#94A3B8]/40"
                 }`}
               >
-                {state === "waiting"
-                  ? "في الانتظار..."
-                  : state === "done"
-                  ? "اكتمل التحليل ✓"
-                  : agent.messages[msgIdx[i]]}
+                {state === "waiting" ? "في الانتظار..." : state === "done" ? "اكتمل التحليل ✓" : agent.messages[msgIdx[i]]}
               </p>
             </div>
           );
@@ -200,10 +219,8 @@ function AnalyzingView({ isReady }: { isReady: boolean }) {
         </div>
         <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-[#1E2D45]">
           <div
-            className={`h-full rounded-full transition-all duration-1000 ease-out ${
-              isComplete ? "bg-emerald-500" : "bg-primary"
-            }`}
-            style={{ width: `${progress}%` }}
+            className={`h-full rounded-full ${isComplete ? "bg-emerald-500" : "bg-primary"}`}
+            style={{ width: `${progress}%`, transition: "width 0.3s linear" }}
           />
         </div>
       </div>
@@ -409,6 +426,8 @@ export function DecisionRoom() {
   const queryClient = useQueryClient();
   const [isSuccessOverlayOpen, setIsSuccessOverlayOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const everAnalyzed = useRef(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       role: "assistant",
@@ -554,6 +573,17 @@ export function DecisionRoom() {
   }
 
   const isAnalyzing = contract.status === "Analyzing" || contract.status === "Paid";
+
+  // Track whether we ever saw an Analyzing state this session.
+  // Also auto-show results immediately if contract is already Ready/Completed on load.
+  useEffect(() => {
+    if (isAnalyzing) {
+      everAnalyzed.current = true;
+    } else if (!everAnalyzed.current) {
+      // Contract was already done when page loaded — skip the animation
+      setShowResults(true);
+    }
+  }, [isAnalyzing]);
   const riskScore = Number(auditResult?.riskScore ?? 0);
   const riskPercentage = Math.min(100, Math.max(0, riskScore * 10));
 
@@ -606,7 +636,7 @@ export function DecisionRoom() {
             </p>
           </div>
 
-          {!isAnalyzing && (contract.status === "Ready" || contract.status === "Completed") && (
+          {showResults && (contract.status === "Ready" || contract.status === "Completed") && (
             <div className="flex items-center gap-3 shrink-0">
               <Button
                 variant="outline"
@@ -636,8 +666,11 @@ export function DecisionRoom() {
       </div>
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
-      {isAnalyzing ? (
-        <AnalyzingView isReady={false} />
+      {!showResults ? (
+        <AnalyzingView
+          isReady={!isAnalyzing}
+          onComplete={() => setShowResults(true)}
+        />
       ) : auditResult ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
