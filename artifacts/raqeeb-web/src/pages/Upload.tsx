@@ -248,7 +248,7 @@ export function Upload() {
             <div className="flex items-center gap-2.5 p-3 rounded-lg bg-primary/8 border border-primary/15">
               <CreditCard className="h-4 w-4 text-primary shrink-0" />
               <span className="text-sm text-[#94A3B8]">
-                اشتراك لمرة واحدة بـ <span className="text-white font-semibold">1 ريال</span> — بعدها تحليل عقود غير محدود
+                اشتراك شهري بـ <span className="text-white font-semibold">1٬000 ريال</span> — تحليل عقود غير محدود طوال الشهر
               </span>
             </div>
           )}
@@ -292,7 +292,7 @@ export function Upload() {
             ) : (
               <>
                 <CreditCard className="ml-2 h-4 w-4" />
-                رفع العقد والاشتراك (1 ريال)
+                رفع العقد والاشتراك (1٬000 ريال)
               </>
             )}
           </Button>
