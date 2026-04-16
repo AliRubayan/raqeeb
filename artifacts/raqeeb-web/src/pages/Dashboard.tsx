@@ -151,7 +151,7 @@ export function Dashboard() {
                         <div className="flex items-center justify-between mb-3">
                           <span className="text-sm font-medium">مؤشر المخاطر</span>
                           <div className="flex items-center gap-1.5">
-                            <span className="font-bold">{contract.auditResult.riskScore}/10</span>
+                            <span className="font-bold">{Number(contract.auditResult.riskScore).toFixed(1)}<span className="text-muted-foreground font-normal text-xs">/10</span></span>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">

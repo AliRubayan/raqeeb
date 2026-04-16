@@ -131,7 +131,9 @@ router.post("/webhook/n8n", async (req, res) => {
   const lawResult       = str("lawfinder") ?? str("law_finder") ?? str("law_result") ?? "";
   const drafterResult   = str("drafter")   ?? str("drafter_result") ?? "";
 
-  const riskScore = Number(rawPayload["risk_score"] ?? 0);
+  // n8n sends risk_score on a 0-100 scale; normalise to 0-10 for storage
+  const rawRiskScore = Number(rawPayload["risk_score"] ?? 0);
+  const riskScore = rawRiskScore > 10 ? Math.round((rawRiskScore / 10) * 10) / 10 : rawRiskScore;
   const severity  = normalizeSeverity(String(rawPayload["severity"] ?? ""));
 
   if (!contractId) {

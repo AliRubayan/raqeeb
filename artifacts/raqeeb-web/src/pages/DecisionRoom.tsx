@@ -304,8 +304,10 @@ export function DecisionRoom() {
   }
 
   const isAnalyzing = contract.status === "Analyzing" || contract.status === "Paid";
-  const riskScore = auditResult?.riskScore || 0;
-  const riskPercentage = riskScore * 10;
+  // Always coerce to number (Drizzle real columns can come back as strings)
+  const riskScore = Number(auditResult?.riskScore ?? 0);
+  // riskScore is stored 0-10; clamp progress bar to [0, 100]
+  const riskPercentage = Math.min(100, Math.max(0, riskScore * 10));
 
   const getRiskColor = (score: number) => {
     if (score >= 7) return "bg-destructive";
