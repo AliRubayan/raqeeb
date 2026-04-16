@@ -83,8 +83,9 @@ function AnalyzingView({ isReady }: { isReady: boolean }) {
     return () => clearInterval(tick);
   }, [elapsed]);
 
-  const rawProgress = isReady ? 100 : Math.min(95, (elapsed / TOTAL_SECONDS) * 100);
+  const rawProgress = isReady ? 100 : Math.min(100, (elapsed / TOTAL_SECONDS) * 100);
   const progress = Math.round(rawProgress);
+  const isComplete = progress >= 100;
 
   const getAgentState = (i: number): "waiting" | "active" | "done" => {
     if (isReady) return "done";
@@ -192,24 +193,19 @@ function AnalyzingView({ isReady }: { isReady: boolean }) {
       </div>
 
       {/* Progress bar */}
-      <div className="space-y-2">
-        <div className="flex justify-between items-center text-xs text-[#94A3B8]">
-          <span>التقدم</span>
+      <div className="space-y-1.5 max-w-xs mx-auto w-full">
+        <div className="flex justify-between items-center text-[11px] text-[#94A3B8]">
+          <span>{isComplete ? "بانتظار القرار" : "التقدم"}</span>
           <span className="font-mono">{progress}%</span>
         </div>
-        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-[#1E2D45]">
+        <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden border border-[#1E2D45]">
           <div
             className={`h-full rounded-full transition-all duration-1000 ease-out ${
-              isReady ? "bg-emerald-500" : "bg-primary"
+              isComplete ? "bg-emerald-500" : "bg-primary"
             }`}
             style={{ width: `${progress}%` }}
           />
         </div>
-        {!isReady && (
-          <p className="text-[10px] text-[#94A3B8]/50 text-center">
-            يستغرق التحليل عادةً من دقيقتين إلى ثلاث دقائق
-          </p>
-        )}
       </div>
     </div>
   );
@@ -274,33 +270,29 @@ function InspectorPanel({ raw }: { raw?: string }) {
   return (
     <div className="space-y-2.5">
       {/* ── Verdict banner ── */}
-      <div dir="rtl" className={`relative flex items-stretch rounded-xl overflow-hidden ${
+      <div dir="rtl" className={`flex items-center gap-4 rounded-xl px-5 py-4 text-right ${
         violated ? "bg-red-500/8" : "bg-emerald-500/8"
       }`}>
-        {/* Thick right accent (first child = flex-start = right in RTL) */}
-        <div className={`w-1.5 shrink-0 ${violated ? "bg-red-500" : "bg-emerald-500"}`} />
-        <div className="flex-1 flex items-center gap-4 px-5 py-4 text-right">
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-            violated ? "bg-red-500/15" : "bg-emerald-500/15"
-          }`}>
-            {violated
-              ? <XCircle className="h-5 w-5 text-red-400" />
-              : <CheckCircle className="h-5 w-5 text-emerald-400" />
-            }
-          </div>
-          <div className="flex-1">
-            <p className={`font-bold text-sm ${violated ? "text-red-300" : "text-emerald-300"}`}>
-              {violated ? "تم رصد انتهاك في هذا العقد" : "لم تُرصد انتهاكات في هذا العقد"}
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+          violated ? "bg-red-500/15" : "bg-emerald-500/15"
+        }`}>
+          {violated
+            ? <XCircle className="h-5 w-5 text-red-400" />
+            : <CheckCircle className="h-5 w-5 text-emerald-400" />
+          }
+        </div>
+        <div className="flex-1">
+          <p className={`font-bold text-sm ${violated ? "text-red-300" : "text-emerald-300"}`}>
+            {violated ? "تم رصد انتهاك في هذا العقد" : "لم تُرصد انتهاكات في هذا العقد"}
+          </p>
+          {d["SEVERITY"] && (
+            <p className="text-xs text-[#94A3B8] mt-1">
+              درجة الخطورة:{" "}
+              <span className={`font-bold ${violated ? "text-red-300" : "text-emerald-300"}`}>
+                {sanitize(d["SEVERITY"])}
+              </span>
             </p>
-            {d["SEVERITY"] && (
-              <p className="text-xs text-[#94A3B8] mt-1">
-                درجة الخطورة
-                <span className={`font-bold ml-1.5 ${violated ? "text-red-300" : "text-emerald-300"}`}>
-                  {sanitize(d["SEVERITY"])}
-                </span>
-              </p>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
